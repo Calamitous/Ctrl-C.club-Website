@@ -1,0 +1,63 @@
+body {
+    width: 50em;
+    margin: 0 auto;
+    font-family: Courier New, courier;
+    background: black;
+    color: green;
+}
+
+h1 {
+    text-align: left;
+    font-size: 1em;
+    color: black;
+    background: green;
+    padding: 0 10px;
+}
+
+h2 {
+    text-align: left;
+    font-size: 1em;
+    font-weight: bold;
+    padding: 0 10px;
+}
+
+p {
+    padding: 0 15px;
+    text-indent: 2em;
+}
+
+ol {
+    margin-left: 25px;
+}
+
+ol.indented {
+    margin-left: 100px;
+}
+
+a {
+    color: lightgreen;
+    font-weight: bold;
+}
+
+.footer {
+    font-size: smaller;
+    font-style: italic;
+}
+
+.langs {
+    margin-left: 20px;
+}
+
+tr:nth-child(odd) {
+    background: green;
+    color: black;
+}
+
+td {
+    padding: 0 15px;
+}
+
+td.lang {
+    font-weight: bold;
+}
+
