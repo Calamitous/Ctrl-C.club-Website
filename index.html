@@ -10,7 +10,7 @@
 
     <body>
         <h2>$>^C</h2>
-        <h1>Welcome to Ctrl-C Club! Population: 94</h1>
+        <h1>Welcome to Ctrl-C Club! Population: 97</h1>
         <table class="heady">
             <tr>
                 <td>New to Ctrl-C.club?</td>
@@ -30,7 +30,7 @@
                     <ul>
                         <li><a href="/news.html" class="news-clicky">News<span id="new-news-notifier" style="display:none;"> (new!)</span></a> -- Last Updated 
                         <div id="news-last-updated">
-Sun Aug 16 22:27:44 EDT 2015
+Thu Aug 27 16:25:38 EDT 2015
                         </div>
     </li>
                         <li><a href="/~pgadey/updated.html">Most Recently Updated User Pages</a></li>
@@ -40,7 +40,7 @@ Sun Aug 16 22:27:44 EDT 2015
                     </ul>
                     <ul>
                         <li><a href="/support.html">Support Ctrl-C.club</a></li>
-                        <li>Documentation -- Coming Soon!</li>
+                        <li><a href="/wiki">Documentation</a></li>
                         <li><a href="/who.html">Member List</a></li>
                     </ul>
                 </td>
@@ -68,12 +68,14 @@ Sun Aug 16 22:27:44 EDT 2015
             <li><a href="/faq.html#other">And A Bunch of Other Stuff</a></li>
         </ol>
 
-        <p>Find more information in the <a href="/faq.html">FAQ</a>.</p>
+        <p>Find more information in the <a href="/faq.html">FAQ</a> or the <a href="/wiki">Wiki</a>.</p>
 
         <a name="frigginsweet"></a>
 
         <h1>What's everyone been up to?</h1>
         <ol>
+	    <li><a href="/~ksikka">~ksikka</a> hit the ground running with an in-depth look at <a href="~ksikka/articles/01-berkeley-db/">Berkeley DB</a></li>
+	    <li><a href="/~philips">~philips</a> has put together a <a href="/~philips/shortstories/">collaborative short story project</a>.  Go read and contribute!</li>
 	    <li>Bake has been updated to support multiple bakefiles and RSS feeds.  Thanks, <a href="/~philips">~philips</a>!</li>
             <li><a href="/~Azmo">~Azmo</a> has put together a tool for editing his site straight from the browser: <a href="/~Azmo/rotide.html">Rotide!</a>  Some of us have taken to opportunity to leave little notes on his site.  Check it out!</li>
             <li>Our own <a href="/~philips">~philips</a> has been working on <a href="http://www.ctrl-c.club/~philips/90s//index.html#bake-is-out">Bake</a>, a templated blog generator.  It's been installed for anyone to use, so <a href="http://www.ctrl-c.club/~philips/index.html#bake">give it a whirl!</a></li>
@@ -114,7 +116,6 @@ $(document).ready(function() {
     {
 	    $('#new-news-notifier').show()
 	}
-
     $('.news-clicky').click(function() {
         var lastUpdated = $('#news-last-updated').text().replace(/\s/g, '');
         document.cookie = 'news-last-updated=' + lastUpdated
@@ -126,8 +127,6 @@ $(document).ready(function() {
   (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
   m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
   })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-
   ga('create', 'UA-64447922-1', 'auto');
   ga('send', 'pageview');
-
 </script>
