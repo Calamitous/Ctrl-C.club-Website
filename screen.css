@@ -68,3 +68,13 @@ td.lang {
     font-weight: bold;
 }
 
+p.longtext {
+    width:80%;
+    margin-left:40px;
+}
+
+ul.sublist {
+    margin-left: 100px;
+    width: 70%;
+}
+
