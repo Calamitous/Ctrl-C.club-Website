@@ -11,20 +11,23 @@ class RenameuserHooks {
 	public static function onShowMissingArticle( $article ) {
 		$title = $article->getTitle();
 		$oldUser = User::newFromName( $title->getBaseText() );
-		if ( ($title->getNamespace() == NS_USER || $title->getNamespace() == NS_USER_TALK ) && ($oldUser && $oldUser->isAnon() )) {
+		if ( ( $title->getNamespace() === NS_USER || $title->getNamespace() === NS_USER_TALK ) &&
+			( $oldUser && $oldUser->isAnon() )
+		) {
 			// Get the title for the base userpage
-			$page = Title::makeTitle( NS_USER, str_replace( ' ', '_', $title->getBaseText() ) )->getPrefixedDBkey();
+			$page = Title::makeTitle( NS_USER, str_replace( ' ', '_', $title->getBaseText() ) )
+				->getPrefixedDBkey();
 			$out = $article->getContext()->getOutput();
 			LogEventsList::showLogExtract(
 				$out,
 				'renameuser',
 				$page,
 				'',
-				array(
+				[
 					'lim' => 10,
 					'showIfEmpty' => false,
-					'msgKey' => array( 'renameuser-renamed-notice', $title->getBaseText() )
-				)
+					'msgKey' => [ 'renameuser-renamed-notice', $title->getBaseText() ]
+				]
 			);
 		}
 
@@ -43,24 +46,26 @@ class RenameuserHooks {
 	public static function onContributionsToolLinks( $id, $nt, &$tools ) {
 		global $wgUser;
 
-		if ( $wgUser->isAllowed( 'renameuser' ) && $id ) {
+		if ( $id && $wgUser->isAllowed( 'renameuser' ) ) {
 			$tools[] = Linker::link(
 				SpecialPage::getTitleFor( 'Renameuser' ),
 				wfMessage( 'renameuser-linkoncontribs' )->escaped(),
-				array( 'title' => wfMessage( 'renameuser-linkoncontribs-text' )->parse() ),
-				array( 'oldusername' => $nt->getText() )
+				[ 'title' => wfMessage( 'renameuser-linkoncontribs-text' )->parse() ],
+				[ 'oldusername' => $nt->getText() ]
 			);
 		}
+
 		return true;
 	}
 
 	/**
 	 * So users can just type in a username for target and it'll work
-	 * @param array $types
+	 * @param array &$types
 	 * @return bool
 	 */
 	public static function onGetLogTypesOnUser( array &$types ) {
 		$types[] = 'renameuser';
+
 		return true;
 	}
 }

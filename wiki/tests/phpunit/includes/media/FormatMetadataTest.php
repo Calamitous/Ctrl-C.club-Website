@@ -33,40 +33,7 @@ class FormatMetadataTest extends MediaWikiMediaTestCase {
 		$this->assertNotNull( $dateIndex, 'Date entry exists in metadata' );
 		$this->assertEquals( '0000:01:00 00:02:27',
 			$meta['visible'][$dateIndex]['value'],
-			'File with invalid date metadata (bug 29471)' );
-	}
-
-	/**
-	 * @param string $filename
-	 * @param int $expected Total image area
-	 * @dataProvider provideFlattenArray
-	 * @covers FormatMetadata::flattenArray
-	 */
-	public function testFlattenArray( $vals, $type, $noHtml, $ctx, $expected ) {
-		$actual = FormatMetadata::flattenArray( $vals, $type, $noHtml, $ctx );
-		$this->assertEquals( $expected, $actual );
-	}
-
-	public static function provideFlattenArray() {
-		return array(
-			array(
-				array( 1, 2, 3 ), 'ul', false, false,
-				"<ul><li>1</li>\n<li>2</li>\n<li>3</li></ul>",
-			),
-			array(
-				array( 1, 2, 3 ), 'ol', false, false,
-				"<ol><li>1</li>\n<li>2</li>\n<li>3</li></ol>",
-			),
-			array(
-				array( 1, 2, 3 ), 'ul', true, false,
-				"\n*1\n*2\n*3",
-			),
-			array(
-				array( 1, 2, 3 ), 'ol', true, false,
-				"\n#1\n#2\n#3",
-			),
-			// TODO: more test cases
-		);
+			'File with invalid date metadata (T31471)' );
 	}
 
 	/**
@@ -85,19 +52,47 @@ class FormatMetadataTest extends MediaWikiMediaTestCase {
 	}
 
 	public function provideResolveMultivalueValue() {
-		return array(
-			'nonArray' => array( 'foo', 'foo' ),
-			'multiValue' => array( array( 'first', 'second', 'third', '_type' => 'ol' ), 'first' ),
-			'noType' => array( array( 'first', 'second', 'third' ), 'first' ),
-			'typeFirst' => array( array( '_type' => 'ol', 'first', 'second', 'third' ), 'first' ),
-			'multilang' => array(
-				array( 'en' => 'first', 'de' => 'Erste', '_type' => 'lang' ),
-				array( 'en' => 'first', 'de' => 'Erste', '_type' => 'lang' ),
-			),
-			'multilang-multivalue' => array(
-				array( 'en' => array( 'first', 'second' ), 'de' => array( 'Erste', 'Zweite' ), '_type' => 'lang' ),
-				array( 'en' => 'first', 'de' => 'Erste', '_type' => 'lang' ),
-			),
-		);
+		return [
+			'nonArray' => [
+				'foo',
+				'foo'
+			],
+			'multiValue' => [
+				[ 'first', 'second', 'third', '_type' => 'ol' ],
+				'first'
+			],
+			'noType' => [
+				[ 'first', 'second', 'third' ],
+				'first'
+			],
+			'typeFirst' => [
+				[ '_type' => 'ol', 'first', 'second', 'third' ],
+				'first'
+			],
+			'multilang' => [
+				[
+					'en' => 'first',
+					'de' => 'Erste',
+					'_type' => 'lang'
+				],
+				[
+					'en' => 'first',
+					'de' => 'Erste',
+					'_type' => 'lang'
+				],
+			],
+			'multilang-multivalue' => [
+				[
+					'en' => [ 'first', 'second' ],
+					'de' => [ 'Erste', 'Zweite' ],
+					'_type' => 'lang'
+				],
+				[
+					'en' => 'first',
+					'de' => 'Erste',
+					'_type' => 'lang'
+				],
+			],
+		];
 	}
 }

@@ -31,8 +31,6 @@
  * @ingroup API
  */
 class ApiQueryRandom extends ApiQueryGeneratorBase {
-	private $pageIDs;
-
 	public function __construct( ApiQuery $query, $moduleName ) {
 		parent::__construct( $query, $moduleName, 'rn' );
 	}
@@ -46,102 +44,137 @@ class ApiQueryRandom extends ApiQueryGeneratorBase {
 	}
 
 	/**
-	 * @param string $randstr
-	 * @param int $limit
-	 * @param int $namespace
-	 * @param ApiPageSet $resultPageSet
-	 * @param bool $redirect
-	 * @return void
+	 * Actually perform the query and add pages to the result.
+	 * @param ApiPageSet|null $resultPageSet
+	 * @param int $limit Number of pages to fetch
+	 * @param string|null $start Starting page_random
+	 * @param int $startId Starting page_id
+	 * @param string|null $end Ending page_random
+	 * @return array (int, string|null) Number of pages left to query and continuation string
 	 */
-	protected function prepareQuery( $randstr, $limit, $namespace, &$resultPageSet, $redirect ) {
+	protected function runQuery( $resultPageSet, $limit, $start, $startId, $end ) {
+		$params = $this->extractRequestParams();
+
 		$this->resetQueryParams();
 		$this->addTables( 'page' );
-		$this->addOption( 'LIMIT', $limit );
-		$this->addWhereFld( 'page_namespace', $namespace );
-		$this->addWhereRange( 'page_random', 'newer', $randstr, null );
-		$this->addWhereFld( 'page_is_redirect', $redirect );
+		$this->addFields( [ 'page_id', 'page_random' ] );
 		if ( is_null( $resultPageSet ) ) {
-			$this->addFields( array( 'page_id', 'page_title', 'page_namespace' ) );
+			$this->addFields( [ 'page_title', 'page_namespace' ] );
 		} else {
 			$this->addFields( $resultPageSet->getPageTableFields() );
 		}
-	}
+		$this->addWhereFld( 'page_namespace', $params['namespace'] );
+		if ( $params['redirect'] || $params['filterredir'] === 'redirects' ) {
+			$this->addWhereFld( 'page_is_redirect', 1 );
+		} elseif ( $params['filterredir'] === 'nonredirects' ) {
+			$this->addWhereFld( 'page_is_redirect', 0 );
+		} elseif ( is_null( $resultPageSet ) ) {
+			$this->addFields( [ 'page_is_redirect' ] );
+		}
+		$this->addOption( 'LIMIT', $limit + 1 );
 
-	/**
-	 * @param ApiPageSet $resultPageSet
-	 * @return int
-	 */
-	protected function runQuery( $resultPageSet = null ) {
+		if ( $start !== null ) {
+			$start = $this->getDB()->addQuotes( $start );
+			if ( $startId > 0 ) {
+				$startId = (int)$startId; // safety
+				$this->addWhere( "page_random = $start AND page_id >= $startId OR page_random > $start" );
+			} else {
+				$this->addWhere( "page_random >= $start" );
+			}
+		}
+		if ( $end !== null ) {
+			$this->addWhere( 'page_random < ' . $this->getDB()->addQuotes( $end ) );
+		}
+		$this->addOption( 'ORDER BY', [ 'page_random', 'page_id' ] );
+
+		$result = $this->getResult();
+		$path = [ 'query', $this->getModuleName() ];
+
 		$res = $this->select( __METHOD__ );
 		$count = 0;
 		foreach ( $res as $row ) {
-			$count++;
+			if ( $count++ >= $limit ) {
+				return [ 0, "{$row->page_random}|{$row->page_id}" ];
+			}
 			if ( is_null( $resultPageSet ) ) {
-				// Prevent duplicates
-				if ( !in_array( $row->page_id, $this->pageIDs ) ) {
-					$fit = $this->getResult()->addValue(
-						array( 'query', $this->getModuleName() ),
-						null, $this->extractRowInfo( $row ) );
-					if ( !$fit ) {
-						// We can't really query-continue a random list.
-						// Return an insanely high value so
-						// $count < $limit is false
-						return 1E9;
-					}
-					$this->pageIDs[] = $row->page_id;
+				$title = Title::makeTitle( $row->page_namespace, $row->page_title );
+				$page = [
+					'id' => (int)$row->page_id,
+				];
+				ApiQueryBase::addTitleInfo( $page, $title );
+				if ( isset( $row->page_is_redirect ) ) {
+					$page['redirect'] = (bool)$row->page_is_redirect;
+				}
+				$fit = $result->addValue( $path, null, $page );
+				if ( !$fit ) {
+					return [ 0, "{$row->page_random}|{$row->page_id}" ];
 				}
 			} else {
 				$resultPageSet->processDbRow( $row );
 			}
 		}
 
-		return $count;
+		return [ $limit - $count, null ];
 	}
 
 	/**
-	 * @param ApiPageSet $resultPageSet
-	 * @return void
+	 * @param ApiPageSet|null $resultPageSet
 	 */
 	public function run( $resultPageSet = null ) {
 		$params = $this->extractRequestParams();
-		$result = $this->getResult();
-		$this->pageIDs = array();
 
-		$this->prepareQuery(
-			wfRandom(),
-			$params['limit'],
-			$params['namespace'],
-			$resultPageSet,
-			$params['redirect']
-		);
-		$count = $this->runQuery( $resultPageSet );
-		if ( $count < $params['limit'] ) {
-			/* We got too few pages, we probably picked a high value
-			 * for page_random. We'll just take the lowest ones, see
-			 * also the comment in Title::getRandomTitle()
-			 */
-			$this->prepareQuery(
-				0,
-				$params['limit'] - $count,
-				$params['namespace'],
-				$resultPageSet,
-				$params['redirect']
+		// Since 'filterredir" will always be set in $params, we have to dig
+		// into the WebRequest to see if it was actually passed.
+		$request = $this->getMain()->getRequest();
+		if ( $request->getCheck( $this->encodeParamName( 'filterredir' ) ) ) {
+			$this->requireMaxOneParameter( $params, 'filterredir', 'redirect' );
+		}
+
+		if ( isset( $params['continue'] ) ) {
+			$cont = explode( '|', $params['continue'] );
+			$this->dieContinueUsageIf( count( $cont ) != 4 );
+			$rand = $cont[0];
+			$start = $cont[1];
+			$startId = (int)$cont[2];
+			$end = $cont[3] ? $rand : null;
+			$this->dieContinueUsageIf( !preg_match( '/^0\.\d+$/', $rand ) );
+			$this->dieContinueUsageIf( !preg_match( '/^0\.\d+$/', $start ) );
+			$this->dieContinueUsageIf( $cont[2] !== (string)$startId );
+			$this->dieContinueUsageIf( $cont[3] !== '0' && $cont[3] !== '1' );
+		} else {
+			$rand = wfRandom();
+			$start = $rand;
+			$startId = 0;
+			$end = null;
+		}
+
+		// Set the non-continue if this is being used as a generator
+		// (as a list it doesn't matter because lists never non-continue)
+		if ( $resultPageSet !== null ) {
+			$endFlag = $end === null ? 0 : 1;
+			$this->getContinuationManager()->addGeneratorNonContinueParam(
+				$this, 'continue', "$rand|$start|$startId|$endFlag"
 			);
-			$this->runQuery( $resultPageSet );
+		}
+
+		list( $left, $continue ) =
+			$this->runQuery( $resultPageSet, $params['limit'], $start, $startId, $end );
+		if ( $end === null && $continue === null ) {
+			// Wrap around. We do this even if $left === 0 for continuation
+			// (saving a DB query in this rare case probably isn't worth the
+			// added code complexity it would require).
+			$end = $rand;
+			list( $left, $continue ) = $this->runQuery( $resultPageSet, $left, null, null, $end );
+		}
+
+		if ( $continue !== null ) {
+			$endFlag = $end === null ? 0 : 1;
+			$this->setContinueEnumParameter( 'continue', "$rand|$continue|$endFlag" );
 		}
 
 		if ( is_null( $resultPageSet ) ) {
-			$result->addIndexedTagName( array( 'query', $this->getModuleName() ), 'page' );
+			$this->getResult()->addIndexedTagName( [ 'query', $this->getModuleName() ], 'page' );
 		}
-	}
-
-	private function extractRowInfo( $row ) {
-		$title = Title::makeTitle( $row->page_namespace, $row->page_title );
-		$vals = array();
-		$vals['id'] = intval( $row->page_id );
-		ApiQueryBase::addTitleInfo( $vals, $title );
-
-		return $vals;
 	}
 
 	public function getCacheMode( $params ) {
@@ -149,32 +182,42 @@ class ApiQueryRandom extends ApiQueryGeneratorBase {
 	}
 
 	public function getAllowedParams() {
-		return array(
-			'namespace' => array(
+		return [
+			'namespace' => [
 				ApiBase::PARAM_TYPE => 'namespace',
 				ApiBase::PARAM_ISMULTI => true
-			),
-			'limit' => array(
+			],
+			'filterredir' => [
+				ApiBase::PARAM_TYPE => [ 'all', 'redirects', 'nonredirects' ],
+				ApiBase::PARAM_DFLT => 'nonredirects', // for BC
+			],
+			'redirect' => [
+				ApiBase::PARAM_DEPRECATED => true,
+				ApiBase::PARAM_DFLT => false,
+			],
+			'limit' => [
 				ApiBase::PARAM_TYPE => 'limit',
 				ApiBase::PARAM_DFLT => 1,
 				ApiBase::PARAM_MIN => 1,
-				ApiBase::PARAM_MAX => 10,
-				ApiBase::PARAM_MAX2 => 20
-			),
-			'redirect' => false,
-		);
+				ApiBase::PARAM_MAX => ApiBase::LIMIT_BIG1,
+				ApiBase::PARAM_MAX2 => ApiBase::LIMIT_BIG2
+			],
+			'continue' => [
+				ApiBase::PARAM_HELP_MSG => 'api-help-param-continue'
+			],
+		];
 	}
 
 	protected function getExamplesMessages() {
-		return array(
+		return [
 			'action=query&list=random&rnnamespace=0&rnlimit=2'
 				=> 'apihelp-query+random-example-simple',
 			'action=query&generator=random&grnnamespace=0&grnlimit=2&prop=info'
 				=> 'apihelp-query+random-example-generator',
-		);
+		];
 	}
 
 	public function getHelpUrls() {
-		return 'https://www.mediawiki.org/wiki/API:Random';
+		return 'https://www.mediawiki.org/wiki/Special:MyLanguage/API:Random';
 	}
 }

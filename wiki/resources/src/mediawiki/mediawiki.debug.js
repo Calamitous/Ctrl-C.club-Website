@@ -118,8 +118,7 @@
 				return $( '<div>' ).prop( {
 					id: 'mw-debug-' + id,
 					className: 'mw-debug-bit'
-				} )
-				.appendTo( $bits );
+				} ).appendTo( $bits );
 			}
 
 			/**
@@ -156,8 +155,8 @@
 					id: 'mw-debug-' + id,
 					className: 'mw-debug-bit mw-debug-panelink'
 				} )
-				.append( paneLabel( id, text ) )
-				.appendTo( $bits );
+					.append( paneLabel( id, text ) )
+					.appendTo( $bits );
 			}
 
 			paneTriggerBitDiv( 'console', 'Console', this.data.log.length );
@@ -190,9 +189,9 @@
 			}
 
 			bitDiv( 'phpversion' )
-				.append( $( this.data.phpEngine === 'HHVM'
-					? '<a href="http://hhvm.com/">HHVM</a>'
-					: '<a href="https://php.net/">PHP</a>'
+				.append( $( this.data.phpEngine === 'HHVM' ?
+					'<a href="http://hhvm.com/">HHVM</a>' :
+					'<a href="https://php.net/">PHP</a>'
 				) )
 				.append( ': ' + this.data.phpVersion );
 
@@ -222,7 +221,7 @@
 						className: 'mw-debug-pane',
 						id: 'mw-debug-pane-' + id
 					} )
-					.append( panes[id] )
+					.append( panes[ id ] )
 					.appendTo( $container );
 			}
 
@@ -231,6 +230,8 @@
 
 		/**
 		 * Build the console panel
+		 *
+		 * @return {jQuery} Console panel
 		 */
 		buildConsoleTable: function () {
 			var $table, entryTypeText, i, length, entry;
@@ -255,7 +256,7 @@
 			};
 
 			for ( i = 0, length = this.data.log.length; i < length; i += 1 ) {
-				entry = this.data.log[i];
+				entry = this.data.log[ i ];
 				entry.typeText = entryTypeText( entry.type );
 
 				$( '<tr>' )
@@ -282,21 +283,21 @@
 			$table = $( '<table id="mw-debug-querylist"></table>' );
 
 			$( '<tr>' )
-				.append( $( '<th>#</th>' ).css( 'width', '4em' )    )
+				.append( $( '<th>#</th>' ).css( 'width', '4em' ) )
 				.append( $( '<th>SQL</th>' ) )
-				.append( $( '<th>Time</th>' ).css( 'width', '8em'  ) )
+				.append( $( '<th>Time</th>' ).css( 'width', '8em' ) )
 				.append( $( '<th>Call</th>' ).css( 'width', '18em' ) )
-			.appendTo( $table );
+				.appendTo( $table );
 
 			for ( i = 0, length = this.data.queries.length; i < length; i += 1 ) {
-				query = this.data.queries[i];
+				query = this.data.queries[ i ];
 
 				$( '<tr>' )
 					.append( $( '<td>' ).text( i + 1 ) )
 					.append( $( '<td>' ).text( query.sql ) )
 					.append( $( '<td class="stats">' ).text( ( query.time * 1000 ).toFixed( 4 ) + 'ms' ) )
-					.append( $( '<td>' ).text( query['function'] ) )
-				.appendTo( $table );
+					.append( $( '<td>' ).text( query[ 'function' ] ) )
+					.appendTo( $table );
 			}
 
 			return $table;
@@ -312,7 +313,7 @@
 			$list = $( '<ul>' );
 
 			for ( i = 0, length = this.data.debugLog.length; i < length; i += 1 ) {
-				line = this.data.debugLog[i];
+				line = this.data.debugLog[ i ];
 				$( '<li>' )
 					.html( mw.html.escape( line ).replace( /\n/g, '<br />\n' ) )
 					.appendTo( $list );
@@ -346,7 +347,7 @@
 
 					$( '<tr>' )
 						.append( $( '<th>' ).text( key ) )
-						.append( $( '<td>' ).text( data[key] ) )
+						.append( $( '<td>' ).text( data[ key ] ) )
 						.appendTo( $table );
 				}
 
@@ -370,7 +371,7 @@
 			$table = $( '<table>' );
 
 			for ( i = 0, length = this.data.includes.length; i < length; i += 1 ) {
-				file = this.data.includes[i];
+				file = this.data.includes[ i ];
 				$( '<tr>' )
 					.append( $( '<td>' ).text( file.name ) )
 					.append( $( '<td class="nr">' ).text( file.size ) )
@@ -380,5 +381,9 @@
 			return $table;
 		}
 	};
+
+	$( function () {
+		debug.init();
+	} );
 
 }( mediaWiki, jQuery ) );

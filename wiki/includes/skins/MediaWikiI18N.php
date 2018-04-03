@@ -26,25 +26,24 @@
  * @ingroup Skins
  */
 class MediaWikiI18N {
-	private $context = array();
+	private $context = [];
 
 	function set( $varName, $value ) {
 		$this->context[$varName] = $value;
 	}
 
 	function translate( $value ) {
-
 		// Hack for i18n:attributes in PHPTAL 1.0.0 dev version as of 2004-10-23
 		$value = preg_replace( '/^string:/', '', $value );
 
 		$value = wfMessage( $value )->text();
 		// interpolate variables
-		$m = array();
+		$m = [];
 		while ( preg_match( '/\$([0-9]*?)/sm', $value, $m ) ) {
 			list( $src, $var ) = $m;
-			wfSuppressWarnings();
+			MediaWiki\suppressWarnings();
 			$varValue = $this->context[$var];
-			wfRestoreWarnings();
+			MediaWiki\restoreWarnings();
 			$value = str_replace( $src, $varValue, $value );
 		}
 		return $value;

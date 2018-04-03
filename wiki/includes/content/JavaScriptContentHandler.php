@@ -32,13 +32,31 @@ class JavaScriptContentHandler extends CodeContentHandler {
 	 * @param string $modelId
 	 */
 	public function __construct( $modelId = CONTENT_MODEL_JAVASCRIPT ) {
-		parent::__construct( $modelId, array( CONTENT_FORMAT_JAVASCRIPT ) );
+		parent::__construct( $modelId, [ CONTENT_FORMAT_JAVASCRIPT ] );
 	}
 
 	/**
 	 * @return string
 	 */
 	protected function getContentClass() {
-		return 'JavaScriptContent';
+		return JavaScriptContent::class;
+	}
+
+	public function supportsRedirects() {
+		return true;
+	}
+
+	/**
+	 * Create a redirect that is also valid JavaScript
+	 *
+	 * @param Title $destination
+	 * @param string $text ignored
+	 * @return JavaScriptContent
+	 */
+	public function makeRedirectContent( Title $destination, $text = '' ) {
+		// The parameters are passed as a string so the / is not url-encoded by wfArrayToCgi
+		$url = $destination->getFullURL( 'action=raw&ctype=text/javascript', false, PROTO_RELATIVE );
+		$class = $this->getContentClass();
+		return new $class( '/* #REDIRECT */' . Xml::encodeJsCall( 'mw.loader.load', [ $url ] ) );
 	}
 }

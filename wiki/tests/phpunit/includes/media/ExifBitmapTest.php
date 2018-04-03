@@ -3,7 +3,7 @@
 /**
  * @group Media
  */
-class ExifBitmapTest extends MediaWikiTestCase {
+class ExifBitmapTest extends MediaWikiMediaTestCase {
 
 	/**
 	 * @var ExifBitmapHandler
@@ -17,7 +17,6 @@ class ExifBitmapTest extends MediaWikiTestCase {
 		$this->setMwGlobals( 'wgShowEXIF', true );
 
 		$this->handler = new ExifBitmapHandler;
-
 	}
 
 	/**
@@ -82,10 +81,10 @@ class ExifBitmapTest extends MediaWikiTestCase {
 	 * @covers ExifBitmapHandler::convertMetadataVersion
 	 */
 	public function testConvertMetadataLatest() {
-		$metadata = array(
-			'foo' => array( 'First', 'Second', '_type' => 'ol' ),
+		$metadata = [
+			'foo' => [ 'First', 'Second', '_type' => 'ol' ],
 			'MEDIAWIKI_EXIF_VERSION' => 2
-		);
+		];
 		$res = $this->handler->convertMetadataVersion( $metadata, 2 );
 		$this->assertEquals( $metadata, $res );
 	}
@@ -94,20 +93,20 @@ class ExifBitmapTest extends MediaWikiTestCase {
 	 * @covers ExifBitmapHandler::convertMetadataVersion
 	 */
 	public function testConvertMetadataToOld() {
-		$metadata = array(
-			'foo' => array( 'First', 'Second', '_type' => 'ol' ),
-			'bar' => array( 'First', 'Second', '_type' => 'ul' ),
-			'baz' => array( 'First', 'Second' ),
+		$metadata = [
+			'foo' => [ 'First', 'Second', '_type' => 'ol' ],
+			'bar' => [ 'First', 'Second', '_type' => 'ul' ],
+			'baz' => [ 'First', 'Second' ],
 			'fred' => 'Single',
 			'MEDIAWIKI_EXIF_VERSION' => 2,
-		);
-		$expected = array(
+		];
+		$expected = [
 			'foo' => "\n#First\n#Second",
 			'bar' => "\n*First\n*Second",
 			'baz' => "\n*First\n*Second",
 			'fred' => 'Single',
 			'MEDIAWIKI_EXIF_VERSION' => 1,
-		);
+		];
 		$res = $this->handler->convertMetadataVersion( $metadata, 1 );
 		$this->assertEquals( $expected, $res );
 	}
@@ -116,14 +115,14 @@ class ExifBitmapTest extends MediaWikiTestCase {
 	 * @covers ExifBitmapHandler::convertMetadataVersion
 	 */
 	public function testConvertMetadataSoftware() {
-		$metadata = array(
-			'Software' => array( array( 'GIMP', '1.1' ) ),
+		$metadata = [
+			'Software' => [ [ 'GIMP', '1.1' ] ],
 			'MEDIAWIKI_EXIF_VERSION' => 2,
-		);
-		$expected = array(
+		];
+		$expected = [
 			'Software' => 'GIMP (Version 1.1)',
 			'MEDIAWIKI_EXIF_VERSION' => 1,
-		);
+		];
 		$res = $this->handler->convertMetadataVersion( $metadata, 1 );
 		$this->assertEquals( $expected, $res );
 	}
@@ -132,14 +131,14 @@ class ExifBitmapTest extends MediaWikiTestCase {
 	 * @covers ExifBitmapHandler::convertMetadataVersion
 	 */
 	public function testConvertMetadataSoftwareNormal() {
-		$metadata = array(
-			'Software' => array( "GIMP 1.2", "vim" ),
+		$metadata = [
+			'Software' => [ "GIMP 1.2", "vim" ],
 			'MEDIAWIKI_EXIF_VERSION' => 2,
-		);
-		$expected = array(
+		];
+		$expected = [
 			'Software' => "\n*GIMP 1.2\n*vim",
 			'MEDIAWIKI_EXIF_VERSION' => 1,
-		);
+		];
 		$res = $this->handler->convertMetadataVersion( $metadata, 1 );
 		$this->assertEquals( $expected, $res );
 	}

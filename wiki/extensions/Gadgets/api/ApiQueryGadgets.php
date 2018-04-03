@@ -20,14 +20,33 @@
  */
 
 class ApiQueryGadgets extends ApiQueryBase {
-	private $props,
-		$categories,
-		$neededIds,
-		$listAllowed,
-		$listEnabled;
+	/**
+	 * @var array
+	 */
+	private $props;
 
-	public function __construct( $query, $moduleName ) {
-		parent::__construct( $query, $moduleName, 'ga' );
+	/**
+	 * @var array|bool
+	 */
+	private $categories;
+
+	/**
+	 * @var array|bool
+	 */
+	private $neededIds;
+
+	/**
+	 * @var bool
+	 */
+	private $listAllowed;
+
+	/**
+	 * @var bool
+	 */
+	private $listEnabled;
+
+	public function __construct( ApiQuery $queryModule, $moduleName ) {
+		parent::__construct( $queryModule, $moduleName, 'ga' );
 	}
 
 	public function execute() {
@@ -52,13 +71,13 @@ class ApiQueryGadgets extends ApiQueryBase {
 	 * @return array
 	 */
 	private function getList() {
-		$gadgets = Gadget::loadStructuredList();
+		$gadgets = GadgetRepo::singleton()->getStructuredList();
 
 		if ( $gadgets === false ) {
-			return array();
+			return [];
 		}
 
-		$result = array();
+		$result = [];
 		foreach ( $gadgets as $category => $list ) {
 			if ( $this->categories && !isset( $this->categories[$category] ) ) {
 				continue;
@@ -74,17 +93,17 @@ class ApiQueryGadgets extends ApiQueryBase {
 	}
 
 	/**
-	 * @param $gadgets array
+	 * @param array $gadgets
 	 */
 	private function applyList( $gadgets ) {
-		$data = array();
+		$data = [];
 		$result = $this->getResult();
 
 		/**
 		 * @var $g Gadget
 		 */
 		foreach ( $gadgets as $g ) {
-			$row = array();
+			$row = [];
 			if ( isset( $this->props['id'] ) ) {
 				$row['id'] = $g->getName();
 			}
@@ -106,7 +125,7 @@ class ApiQueryGadgets extends ApiQueryBase {
 	}
 
 	/**
-	 * @param $gadget Gadget
+	 * @param Gadget $gadget
 	 *
 	 * @return bool
 	 */
@@ -119,37 +138,40 @@ class ApiQueryGadgets extends ApiQueryBase {
 	}
 
 	/**
-	 * @param $g Gadget
+	 * @param Gadget $g
 	 * @return array
 	 */
 	private function fakeMetadata( Gadget $g ) {
-		return array(
-			'settings' => array(
+		return [
+			'settings' => [
 				'rights' => $g->getRequiredRights(),
 				'skins' => $g->getRequiredSkins(),
 				'default' => $g->isOnByDefault(),
-				'hidden' => false, // Only exists in RL2 branch
-				'shared' => false, // Only exists in RL2 branch
+				'hidden' => $g->isHidden(),
+				'shared' => false,
 				'category' => $g->getCategory(),
-			),
-			'module' => array(
+				'legacyscripts' => (bool)$g->getLegacyScripts(),
+			],
+			'module' => [
 				'scripts' => $g->getScripts(),
 				'styles' => $g->getStyles(),
 				'dependencies' => $g->getDependencies(),
-				'messages' => array(), // Only exists in RL2 branch
-			)
-		);
+				'peers' => $g->getPeers(),
+				'messages' => $g->getMessages(),
+			]
+		];
 	}
 
 	private function setIndexedTagNameForMetadata( &$metadata ) {
-		static $tagNames = array(
+		static $tagNames = [
 			'rights' => 'right',
 			'skins' => 'skin',
 			'scripts' => 'script',
 			'styles' => 'style',
 			'dependencies' => 'dependency',
+			'peers' => 'peer',
 			'messages' => 'message',
-		);
+		];
 
 		$result = $this->getResult();
 		foreach ( $metadata as &$data ) {
@@ -163,81 +185,37 @@ class ApiQueryGadgets extends ApiQueryBase {
 	}
 
 	public function getAllowedParams() {
-		return array(
-			'prop' => array(
+		return [
+			'prop' => [
 				ApiBase::PARAM_DFLT => 'id|metadata',
 				ApiBase::PARAM_ISMULTI => true,
-				ApiBase::PARAM_TYPE => array(
+				ApiBase::PARAM_TYPE => [
 					'id',
 					'metadata',
 					'desc',
-				),
-			),
-			'categories' => array(
+				],
+			],
+			'categories' => [
 				ApiBase::PARAM_ISMULTI => true,
 				ApiBase::PARAM_TYPE => 'string',
-			),
-			'ids' => array(
+			],
+			'ids' => [
 				ApiBase::PARAM_TYPE => 'string',
 				ApiBase::PARAM_ISMULTI => true,
-			),
+			],
 			'allowedonly' => false,
 			'enabledonly' => false,
-		);
-	}
-
-	/**
-	 * @deprecated since MediaWiki core 1.25
-	 */
-	public function getDescription() {
-		return 'Returns a list of gadgets used on this wiki';
-	}
-
-	/**
-	 * @deprecated since MediaWiki core 1.25
-	 */
-	public function getParamDescription() {
-		return array(
-			'prop' => array(
-				'What gadget information to get:',
-				' id             - Internal gadget ID',
-				' metadata       - The gadget metadata',
-				' desc           - Gadget description transformed into HTML (can be slow, use only if really needed)',
-			),
-			'categories' => 'Gadgets from what categories to retrieve',
-			'ids' => 'ID(s) of gadgets to retrieve',
-			'allowedonly' => 'List only gadgets allowed to current user',
-			'enabledonly' => 'List only gadgets enabled by current user',
-		);
-	}
-
-	/**
-	 * @deprecated since MediaWiki core 1.25
-	 */
-	public function getExamples() {
-		$params = $this->getAllowedParams();
-		$allProps = implode( '|', $params['prop'][ApiBase::PARAM_TYPE] );
-		return array(
-			'Get a list of gadgets along with their descriptions:',
-			'    api.php?action=query&list=gadgets&gaprop=id|desc',
-			'Get a list of gadgets with all possible properties:',
-			"    api.php?action=query&list=gadgets&gaprop=$allProps",
-			'Get a list of gadgets belonging to category "foo":',
-			'    api.php?action=query&list=gadgets&gacategories=foo',
-			'Get information about gadgets "foo" and "bar":',
-			'    api.php?action=query&list=gadgets&gaids=foo|bar&gaprop=id|desc|metadata',
-			'Get a list of gadgets enabled by current user:',
-			'    api.php?action=query&list=gadgets&gaenabledonly',
-		);
+		];
 	}
 
 	/**
 	 * @see ApiBase::getExamplesMessages()
+	 * @return array
 	 */
 	protected function getExamplesMessages() {
 		$params = $this->getAllowedParams();
 		$allProps = implode( '|', $params['prop'][ApiBase::PARAM_TYPE] );
-		return array(
+		return [
 			'action=query&list=gadgets&gaprop=id|desc'
 				=> 'apihelp-query+gadgets-example-1',
 			"action=query&list=gadgets&gaprop=$allProps"
@@ -248,6 +226,6 @@ class ApiQueryGadgets extends ApiQueryBase {
 				=> 'apihelp-query+gadgets-example-4',
 			'action=query&list=gadgets&gaenabledonly'
 				=> 'apihelp-query+gadgets-example-5',
-		);
+		];
 	}
 }

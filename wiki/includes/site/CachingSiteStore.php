@@ -90,7 +90,7 @@ class CachingSiteStore implements SiteStore {
 	private function getCacheKey() {
 		if ( $this->cacheKey === null ) {
 			$type = 'SiteList#' . SiteList::getSerialVersionId();
-			$this->cacheKey = wfMemcKey( "sites/$type" );
+			$this->cacheKey = $this->cache->makeKey( "sites/$type" );
 		}
 
 		return $this->cacheKey;
@@ -142,7 +142,7 @@ class CachingSiteStore implements SiteStore {
 	 * @return bool Success indicator
 	 */
 	public function saveSite( Site $site ) {
-		return $this->saveSites( array( $site ) );
+		return $this->saveSites( [ $site ] );
 	}
 
 	/**
@@ -168,8 +168,10 @@ class CachingSiteStore implements SiteStore {
 	}
 
 	/**
-	 * Purges the internal and external cache of the site list, forcing the list
+	 * Purges the internal and external cache of the site list, forcing the list.
 	 * of sites to be reloaded.
+	 *
+	 * Only use this for testing, as APC is typically used and is per-server
 	 *
 	 * @since 1.25
 	 */
@@ -181,6 +183,8 @@ class CachingSiteStore implements SiteStore {
 
 	/**
 	 * Clears the list of sites stored.
+	 *
+	 * Only use this for testing, as APC is typically used and is per-server.
 	 *
 	 * @see SiteStore::clear()
 	 *

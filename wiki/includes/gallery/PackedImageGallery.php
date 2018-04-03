@@ -21,8 +21,8 @@
  */
 
 class PackedImageGallery extends TraditionalImageGallery {
-	function __construct( $mode = 'traditional' ) {
-		parent::__construct( $mode );
+	function __construct( $mode = 'traditional', IContextSource $context = null ) {
+		parent::__construct( $mode, $context );
 		// Does not support per row option.
 		$this->mPerRow = 0;
 	}
@@ -60,10 +60,10 @@ class PackedImageGallery extends TraditionalImageGallery {
 		}
 
 		// self::SCALE_FACTOR so the js has some room to manipulate sizes.
-		return array(
+		return [
 			'width' => $width * self::SCALE_FACTOR,
 			'height' => $this->mHeights * self::SCALE_FACTOR,
-		);
+		];
 	}
 
 	protected function getThumbDivWidth( $thumbWidth ) {
@@ -98,7 +98,7 @@ class PackedImageGallery extends TraditionalImageGallery {
 	 * @return array
 	 */
 	protected function getModules() {
-		return array( 'mediawiki.page.gallery' );
+		return [ 'mediawiki.page.gallery' ];
 	}
 
 	/**

@@ -7,18 +7,25 @@ namespace OOUI;
  *
  * @abstract
  */
-class Theme {
+abstract class Theme {
 
-	/* Members */
+	/* Properties */
 
 	private static $singleton;
 
 	/* Static Methods */
 
-	public static function setSingleton( Theme $theme ) {
+	/**
+	 * @param Theme|null $theme Theme to use throughout the application
+	 */
+	public static function setSingleton( Theme $theme = null ) {
 		self::$singleton = $theme;
 	}
 
+	/**
+	 * @return Theme
+	 * @throws Exception
+	 */
 	public static function singleton() {
 		if ( !self::$singleton ) {
 			throw new Exception( __METHOD__ . ' was called with no singleton theme set.' );
@@ -37,7 +44,7 @@ class Theme {
 	 * @return array Categorized class names with `on` and `off` lists
 	 */
 	public function getElementClasses( Element $element ) {
-		return array( 'on' => array(), 'off' => array() );
+		return [ 'on' => [], 'off' => [] ];
 	}
 
 	/**
@@ -50,9 +57,17 @@ class Theme {
 	 */
 	public function updateElementClasses( Element $element ) {
 		$classes = $this->getElementClasses( $element );
+		$traits = class_uses( $element );
 
-		$element
-			->removeClasses( $classes['off'] )
-			->addClasses( $classes['on'] );
+		if ( in_array( IconElement::class, $traits ) ) {
+			$element->getIconElement()
+				->removeClasses( $classes['off'] )
+				->addClasses( $classes['on'] );
+		}
+		if ( in_array( IndicatorElement::class, $traits ) ) {
+			$element->getIndicatorElement()
+				->removeClasses( $classes['off'] )
+				->addClasses( $classes['on'] );
+		}
 	}
 }

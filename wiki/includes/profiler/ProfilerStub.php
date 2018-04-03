@@ -40,10 +40,9 @@ class ProfilerStub extends Profiler {
 	public function close() {
 	}
 
-	public function getCurrentSection() {
-		return '';
+	public function logData() {
 	}
 
-	public function logData() {
+	public function logDataPageOutputOnly() {
 	}
 }

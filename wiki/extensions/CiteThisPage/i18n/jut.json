@@ -1,11 +1,13 @@
 {
 	"@metadata": {
 		"authors": [
-			"Huslåke"
+			"Huslåke",
+			"Jyllanj"
 		]
 	},
-	"citethispage": "Fodnåt",
-	"citethispage-link": "Fodnåter denne ertikel",
-	"citethispage-change-submit": "Fodnåt",
-	"citethispage-change-target": "Side:"
+	"citethispage": "Citiir",
+	"citethispage-link": "Citiir siden",
+	"tooltip-citethispage": "Informasjon om hwant man kan citiir siden",
+	"citethispage-change-submit": "Citiir",
+	"citethispage-change-target": "Siid:"
 }

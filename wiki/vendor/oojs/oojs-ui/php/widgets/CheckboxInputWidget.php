@@ -7,6 +7,10 @@ namespace OOUI;
  */
 class CheckboxInputWidget extends InputWidget {
 
+	/* Static Properties */
+
+	public static $tagName = 'span';
+
 	/* Properties */
 
 	/**
@@ -18,36 +22,36 @@ class CheckboxInputWidget extends InputWidget {
 
 	/**
 	 * @param array $config Configuration options
-	 * @param boolean $config['selected'] Whether the checkbox is initially selected
+	 * @param bool $config['selected'] Whether the checkbox is initially selected
 	 *   (default: false)
 	 */
-	public function __construct( array $config = array() ) {
+	public function __construct( array $config = [] ) {
 		// Parent constructor
 		parent::__construct( $config );
 
 		// Initialization
-		$this->addClasses( array( 'oo-ui-checkboxInputWidget' ) );
+		$this->addClasses( [ 'oo-ui-checkboxInputWidget' ] );
+		// Required for pretty styling in WikimediaUI theme
+		$this->appendContent( new Tag( 'span' ) );
 		$this->setSelected( isset( $config['selected'] ) ? $config['selected'] : false );
 	}
 
 	protected function getInputElement( $config ) {
-		$input = new Tag( 'input' );
-		$input->setAttributes( array( 'type' => 'checkbox' ) );
-		return $input;
+		return ( new Tag( 'input' ) )->setAttributes( [ 'type' => 'checkbox' ] );
 	}
 
 	/**
 	 * Set selection state of this checkbox.
 	 *
-	 * @param boolean $state Whether the checkbox is selected
-	 * @chainable
+	 * @param bool $state Whether the checkbox is selected
+	 * @return $this
 	 */
 	public function setSelected( $state ) {
 		$this->selected = (bool)$state;
 		if ( $this->selected ) {
-			$this->input->setAttributes( array( 'checked' => 'checked' ) );
+			$this->input->setAttributes( [ 'checked' => 'checked' ] );
 		} else {
-			$this->input->removeAttributes( array( 'checked' ) );
+			$this->input->removeAttributes( [ 'checked' ] );
 		}
 		return $this;
 	}
@@ -55,7 +59,7 @@ class CheckboxInputWidget extends InputWidget {
 	/**
 	 * Check if this checkbox is selected.
 	 *
-	 * @return boolean Checkbox is selected
+	 * @return bool Checkbox is selected
 	 */
 	public function isSelected() {
 		return $this->selected;

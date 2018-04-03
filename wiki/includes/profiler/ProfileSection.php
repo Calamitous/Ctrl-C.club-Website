@@ -25,7 +25,7 @@
  * Class for handling function-scope profiling
  *
  * @since 1.22
- * @deprecated 1.25 No-op now
+ * @deprecated since 1.25 No-op now
  */
 class ProfileSection {
 	/**
@@ -35,9 +35,11 @@ class ProfileSection {
 	 * the same moment that the function to be profiled terminates.
 	 *
 	 * This is typically called like:
-	 * <code>$section = new ProfileSection( __METHOD__ );</code>
+	 * @code$section = new ProfileSection( __METHOD__ );@endcode
 	 *
 	 * @param string $name Name of the function to profile
 	 */
-	public function __construct( $name ) {}
+	public function __construct( $name ) {
+		wfDeprecated( __CLASS__, '1.25' );
+	}
 }

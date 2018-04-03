@@ -1,5 +1,5 @@
-MediaWiki-Core-Vendor
-=====================
+MediaWiki-Vendor
+================
 
 [Composer] managed libraries required or recommended for use with [MediaWiki].
 This repository is maintained for use on the Wikimedia Foundation production
@@ -18,11 +18,14 @@ by `git submodule update --init`.
 Adding or updating libraries
 ----------------------------
 
-1. Edit the composer.json file
-2. Run `composer update` to download files and update the autoloader files.
-3. Add and commit changes as a gerrit patch.
-4. Review and merge changes.
+0. Read the [documentation] on the process for adding new libraries.
+1. Ensure you're using the 1.4.1 version of composer via `composer --version`.
+2. Edit the composer.json file to add/update the libraries you want to change.
+3. Run `composer update --no-dev` to download files and update the autoloader.
+4. Add and commit changes as a gerrit patch.
+5. Review and merge changes.
 
 
 [Composer]: https://getcomposer.org/
 [MediaWiki]: https://www.mediawiki.org/wiki/MediaWiki
+[documentation]: https://www.mediawiki.org/wiki/Manual:External_libraries

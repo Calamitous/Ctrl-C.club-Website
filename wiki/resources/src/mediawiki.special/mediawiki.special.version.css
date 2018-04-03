@@ -1,10 +1,12 @@
 /*!
  * Styling for Special:Version
  */
-.mw-version-ext-name {
+.mw-version-ext-name,
+.mw-version-library-name {
 	font-weight: bold;
 }
 
+.mw-version-ext-license,
 .mw-version-ext-vcs-timestamp {
 	white-space: nowrap;
 }
@@ -15,4 +17,10 @@ th.mw-version-ext-col-label {
 
 .mw-version-ext-vcs-version {
 	unicode-bidi: embed;
+}
+
+.mw-version-credits {
+	column-width: 18em;
+	-moz-column-width: 18em;
+	-webkit-column-width: 18em;
 }

@@ -5,23 +5,22 @@ class NukeHooks {
 	/**
 	 * Shows link to Special:Nuke on Special:Contributions/username if applicable
 	 *
-	 * @param $userId Integer
-	 * @param $userPageTitle Title
-	 * @param $toolLinks Array
-	 *
-	 * @return true
+	 * @param int $userId
+	 * @param Title $userPageTitle
+	 * @param string[] &$toolLinks
+	 * @param SpecialPage $sp
 	 */
-	public static function nukeContributionsLinks( $userId, $userPageTitle, &$toolLinks ) {
-		global $wgUser;
-
-		if ( $wgUser->isAllowed( 'nuke' ) ) {
-			$toolLinks[] = Linker::link(
+	public static function nukeContributionsLinks( $userId, $userPageTitle, &$toolLinks,
+		SpecialPage $sp
+	) {
+		if ( $sp->getUser()->isAllowed( 'nuke' ) ) {
+			$toolLinks['nuke'] = $sp->getLinkRenderer()->makeKnownLink(
 				SpecialPage::getTitleFor( 'Nuke' ),
-				wfMessage( 'nuke-linkoncontribs' )->escaped(),
-				array( 'title' => wfMessage( 'nuke-linkoncontribs-text' )->text() ),
-				array( 'target' => $userPageTitle->getText() )
+				$sp->msg( 'nuke-linkoncontribs' )->text(),
+				[ 'title' => $sp->msg( 'nuke-linkoncontribs-text',
+					$userPageTitle->getText() )->text() ],
+				[ 'target' => $userPageTitle->getText() ]
 			);
 		}
-		return true;
 	}
 }

@@ -2,7 +2,8 @@
 	"@metadata": {
 		"authors": [
 			"Kandar",
-			"Macofe"
+			"Macofe",
+			"Uchup19"
 		]
 	},
 	"wikieditor-wikitext-tab": "Wikitext",
@@ -51,6 +52,7 @@
 	"wikieditor-toolbar-tool-link-lookslikeinternal-ext": "Tutumbu éksternal",
 	"wikieditor-toolbar-tool-link-empty": "Anjeun teu ngasupkeun nanaon pikeun tutumbu.",
 	"wikieditor-toolbar-tool-file-example": "Conto.jpg",
+	"wikieditor-toolbar-tool-file-cancel": "Bolay",
 	"wikieditor-toolbar-tool-reference": "Rujukan",
 	"wikieditor-toolbar-tool-reference-example": "Asupkeun catetan susuku di dieu",
 	"wikieditor-toolbar-tool-reference-cancel": "Bolay",
@@ -153,15 +155,15 @@
 	"wikieditor-toolbar-help-content-olist-description": "Béréndélan nomer",
 	"wikieditor-toolbar-help-content-file-syntax": "[[$1:Conto.png|$2|$3]]",
 	"wikieditor-toolbar-help-content-reference-description": "Rujukan",
-	"wikieditor-toolbar-help-content-reference-syntax": "Téks kaca.&lt;ref name=\"test\"&gt;[http://www.conto.org Téks tutumbu], téks panambih.&lt;/ref&gt;",
+	"wikieditor-toolbar-help-content-reference-syntax": "Téks kaca.&lt;ref&gt;[http://www.conto.org Téks tutumbu], téks panambih.&lt;/ref&gt;",
 	"wikieditor-toolbar-help-content-reference-result": "Téks kaca.<sup><a href='#'>[1]</a></sup>",
-	"wikieditor-toolbar-help-content-rereference-result": "Téks kaca.<sup><a href='#'>[1]</a></sup>",
+	"wikieditor-toolbar-help-content-rereference-result": "Téks kaca.<sup><a href='#'>[2]</a></sup>",
 	"wikieditor-toolbar-help-content-showreferences-description": "Témbongkeun rujukan",
 	"wikieditor-toolbar-help-content-showreferences-result": "<ol class='references'><li id='cite_note-test-0'><b><a title='' href='#'>^</a></b> <a rel='nofollow' title='http://www.conto.org' class='téks éksternal' href='#'>Téks tutumbu</a>, téks panambih.</li></ol>",
 	"wikieditor-toolbar-help-content-signaturetimestamp-description": "Tandatangan jeung titimangsa",
-	"wikieditor-toolbar-help-content-signaturetimestamp-result": "<a href='#' title='{{#special:mypage}}'>Sandiasma</a> (<a href='#' title='{{#special:mytalk}}'>obrolan</a>) 15:54, 10 Juni 2009 (UTC)",
+	"wikieditor-toolbar-help-content-signaturetimestamp-result": "--<a href='#' title='$1:Username'>Sandiasma</a> (<a href='#' title='$2:Username'>obrolan</a>) 15:54, 10 Juni 2009 (UTC)",
 	"wikieditor-toolbar-help-content-signature-description": "Tandatangan",
-	"wikieditor-toolbar-help-content-signature-result": "<a href='#' title='{{#special:mypage}}'>Sandiasma</a> (<a href='#' title='{{#special:mytalk}}'>obrolan</a>)",
+	"wikieditor-toolbar-help-content-signature-result": "<a href='#' title='$1:Username'>Sandiasma</a> (<a href='#' title='$2:Username'>obrolan</a>)",
 	"wikieditor-toolbar-help-content-indent-description": "Ngelok",
 	"wikieditor-toolbar-help-content-indent-syntax": "Téks normal<br />:Téks ngelok<br />::Téks ngelok",
 	"wikieditor-toolbar-help-content-indent-result": "Téks normal<dl><dd>Téks ngelok<dl><dd>Téks ngelok</dd></dl></dd></dl>"

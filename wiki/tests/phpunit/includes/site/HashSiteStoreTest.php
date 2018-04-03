@@ -30,9 +30,9 @@ class HashSiteStoreTest extends MediaWikiTestCase {
 	 * @covers HashSiteStore::getSites
 	 */
 	public function testGetSites() {
-		$expectedSites = array();
+		$expectedSites = [];
 
-		foreach( TestSites::getSites() as $testSite ) {
+		foreach ( TestSites::getSites() as $testSite ) {
 			$siteId = $testSite->getGlobalId();
 			$expectedSites[$siteId] = $testSite;
 		}
@@ -66,7 +66,7 @@ class HashSiteStoreTest extends MediaWikiTestCase {
 	public function testSaveSites() {
 		$store = new HashSiteStore();
 
-		$sites = array();
+		$sites = [];
 
 		$site = new Site();
 		$site->setGlobalId( 'enwiki' );

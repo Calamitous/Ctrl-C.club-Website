@@ -1,13 +1,21 @@
 {
 	"@metadata": {
 		"authors": [
-			"CERminator"
+			"CERminator",
+			"Semso98",
+			"Srdjan m"
 		]
 	},
-	"syntaxhighlight-desc": "Omogućava isticanje sintakse <code>&lt;syntaxhighlight&gt;</code> uz pomoć [http://qbnz.com/highlighter/ GeSHi Highlightera]",
-	"syntaxhighlight-specify": "Potrebno je da specificirate jezik ovako:",
-	"syntaxhighlight-supported": "Podržani jezici za isticanje sintakse:",
-	"syntaxhighlight-err-loading": "(greška pri korištenju spiska podržanih jezika)",
-	"syntaxhighlight-err-language": "Pogrešan jezik.",
-	"geshi.css": "/* CSS koji se ovdje postavi će biti korišten za isticanje GeSHi sintakse */"
+	"syntaxhighlight-desc": "Omogućava isticanje sintakse <code>&lt;source&gt;</code> uz pomoć [http://pygments.org/ Pygments - Python syntax highlighter]",
+	"syntaxhighlight-error-category": "Stranice s greškama u isticanju sintakse",
+	"syntaxhighlight-error-category-desc": "Došlo je do greške pri pokušaju da se istakne kôd koji je uključen na stranici.",
+	"syntaxhighlight-visualeditor-mwsyntaxhighlightinspector-code": "Kôd",
+	"syntaxhighlight-visualeditor-mwsyntaxhighlightinspector-language": "Jezik",
+	"syntaxhighlight-visualeditor-mwsyntaxhighlightinspector-none": "(nijedan)",
+	"syntaxhighlight-visualeditor-mwsyntaxhighlightinspector-showlines": "Prikaži brojeve redova",
+	"syntaxhighlight-visualeditor-mwsyntaxhighlightinspector-startingline": "Broj početnog reda",
+	"syntaxhighlight-visualeditor-mwsyntaxhighlightinspector-title": "Računarski kôd",
+	"syntaxhighlight-error-pygments-invocation-failure": "Nisam uspio pozvati Pygments",
+	"syntaxhighlight-error-unknown-language": "Nepoznat jezik \"$1\"",
+	"syntaxhighlight-error-exceeds-size-limit": "Trenutna veličina kôda ($1 {{PLURAL:$1|bajt|bajta|bajtova}}) prekoračava gornju granicu od $2 {{PLURAL:$1|bajt|bajta|bajtova}}"
 }

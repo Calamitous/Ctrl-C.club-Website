@@ -4,6 +4,15 @@
  * Email Blacklisting
  */
 class EmailBlacklist extends BaseBlacklist {
+	/**
+	 * @param array $links
+	 * @param Title $title
+	 * @param bool $preventLog
+	 * @return mixed
+	 */
+	public function filter( array $links, Title $title, $preventLog = false ) {
+		throw new LogicException( __CLASS__ . ' cannot be used to filter links.' );
+	}
 
 	/**
 	 * Returns the code for the blacklist implementation
@@ -34,16 +43,15 @@ class EmailBlacklist extends BaseBlacklist {
 
 		// Check for whitelisted email addresses
 		if ( is_array( $whitelists ) ) {
-			wfDebugLog( 'SpamBlacklist', "Excluding whitelisted email addresses from " . count( $whitelists ) .
-				" regexes: " . implode( ', ', $whitelists ) . "\n" );
+			wfDebugLog( 'SpamBlacklist', "Excluding whitelisted email addresses from " .
+				count( $whitelists ) . " regexes: " . implode( ', ', $whitelists ) . "\n" );
 			foreach ( $whitelists as $regex ) {
-				if ( preg_match( $regex, $email ) )  {
+				if ( preg_match( $regex, $email ) ) {
 					// Whitelisted email
 					return true;
 				}
 			}
 		}
-
 
 		# Do the match
 		wfDebugLog( 'SpamBlacklist', "Checking e-mail address against " . count( $blacklists ) .

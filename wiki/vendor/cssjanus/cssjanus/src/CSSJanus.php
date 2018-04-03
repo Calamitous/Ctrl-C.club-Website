@@ -78,6 +78,7 @@ class CSSJanus {
 		'text_shadow2' => null,
 		'bg_horizontal_percentage' => null,
 		'bg_horizontal_percentage_x' => null,
+		'suffix' => '(\s*(?:!important\s*)?[;}])'
 	);
 
 	/**
@@ -115,26 +116,48 @@ class CSSJanus {
 		$patterns['cursor_east'] = "/{$patterns['lookbehind_not_letter']}([ns]?)e-resize/";
 		$patterns['cursor_west'] = "/{$patterns['lookbehind_not_letter']}([ns]?)w-resize/";
 		$patterns['four_notation_quantity_props'] = "((?:margin|padding|border-width)\s*:\s*)";
-		$patterns['four_notation_quantity'] = "/{$patterns['four_notation_quantity_props']}{$patterns['possibly_negative_quantity']}(\s+){$patterns['possibly_negative_quantity']}(\s+){$patterns['possibly_negative_quantity']}(\s+){$patterns['possibly_negative_quantity']}(\s*(?:!important\s*)?[;}])/i";
-		$patterns['four_notation_color'] = "/((?:-color|border-style)\s*:\s*){$patterns['color']}(\s+){$patterns['color']}(\s+){$patterns['color']}(\s+){$patterns['color']}(\s*(?:!important\s*)?[;}])/i";
-		$patterns['border_radius'] = "/(border-radius\s*:\s*)([^;}]*)/";
+		$patterns['four_notation_quantity'] = "/{$patterns['four_notation_quantity_props']}{$patterns['possibly_negative_quantity']}(\s+){$patterns['possibly_negative_quantity']}(\s+){$patterns['possibly_negative_quantity']}(\s+){$patterns['possibly_negative_quantity']}{$patterns['suffix']}/i";
+		$patterns['four_notation_color'] = "/((?:-color|border-style)\s*:\s*){$patterns['color']}(\s+){$patterns['color']}(\s+){$patterns['color']}(\s+){$patterns['color']}{$patterns['suffix']}/i";
+		// border-radius: <length or percentage>{1,4} [optional: / <length or percentage>{1,4} ]
+		$patterns['border_radius'] = '/(border-radius\s*:\s*)' . $patterns['possibly_negative_quantity']
+			. '(?:(?:\s+' . $patterns['possibly_negative_quantity'] . ')(?:\s+' . $patterns['possibly_negative_quantity'] . ')?(?:\s+' . $patterns['possibly_negative_quantity'] . ')?)?'
+			. '(?:(?:(?:\s*\/\s*)' . $patterns['possibly_negative_quantity'] . ')(?:\s+' . $patterns['possibly_negative_quantity'] . ')?(?:\s+' . $patterns['possibly_negative_quantity'] . ')?(?:\s+' . $patterns['possibly_negative_quantity'] . ')?)?' . $patterns['suffix']
+			. '/i';
 		$patterns['box_shadow'] = "/(box-shadow\s*:\s*(?:inset\s*)?){$patterns['possibly_negative_quantity']}/i";
-		$patterns['text_shadow1'] = "/(text-shadow\s*:\s*){$patterns['color']}(\s*){$patterns['possibly_negative_quantity']}/i";
-		$patterns['text_shadow2'] = "/(text-shadow\s*:\s*){$patterns['possibly_negative_quantity']}/i";
+		$patterns['text_shadow1'] = "/(text-shadow\s*:\s*){$patterns['possibly_negative_quantity']}(\s*){$patterns['color']}/i";
+		$patterns['text_shadow2'] = "/(text-shadow\s*:\s*){$patterns['color']}(\s*){$patterns['possibly_negative_quantity']}/i";
+		$patterns['text_shadow3'] = "/(text-shadow\s*:\s*){$patterns['possibly_negative_quantity']}/i";
 		$patterns['bg_horizontal_percentage'] = "/(background(?:-position)?\s*:\s*(?:[^:;}\s]+\s+)*?)({$patterns['quantity']})/i";
 		$patterns['bg_horizontal_percentage_x'] = "/(background-position-x\s*:\s*)(-?{$patterns['num']}%)/i";
+		$patterns['translate_x'] = "/(transform\s*:[^;]*)(translateX\s*\(\s*){$patterns['possibly_negative_quantity']}(\s*\))/i";
+		$patterns['translate'] = "/(transform\s*:[^;]*)(translate\s*\(\s*){$patterns['possibly_negative_quantity']}((?:\s*,\s*{$patterns['possibly_negative_quantity']}){0,2}\s*\))/i";
 		// @codingStandardsIgnoreEnd
 
 	}
 
 	/**
 	 * Transform an LTR stylesheet to RTL
-	 * @param string $css stylesheet to transform
-	 * @param $swapLtrRtlInURL Boolean: If true, swap 'ltr' and 'rtl' in URLs
-	 * @param $swapLeftRightInURL Boolean: If true, swap 'left' and 'right' in URLs
+	 * @param string $css Stylesheet to transform
+	 * @param array|bool $options Options array or value of transformDirInUrl option (back-compat)
+	 * @param bool $options['transformDirInUrl'] Transform directions in URLs (ltr/rtl). Default: false.
+	 * @param bool $options['transformEdgeInUrl'] Transform edges in URLs (left/right). Default: false.
+	 * @param bool $transformEdgeInUrl [optional] For back-compat
 	 * @return string Transformed stylesheet
 	 */
-	public static function transform($css, $swapLtrRtlInURL = false, $swapLeftRightInURL = false) {
+	public static function transform($css, $options = array(), $transformEdgeInUrl = false) {
+		if (!is_array($options)) {
+			$options = array(
+				'transformDirInUrl' => (bool)$options,
+				'transformEdgeInUrl' => (bool)$transformEdgeInUrl,
+			);
+		}
+
+		// Defaults
+		$options += array(
+			'transformDirInUrl' => false,
+			'transformEdgeInUrl' => false,
+		);
+
 		// We wrap tokens in ` , not ~ like the original implementation does.
 		// This was done because ` is not a legal character in CSS and can only
 		// occur in URLs, where we escape it to %60 before inserting our tokens.
@@ -156,11 +179,11 @@ class CSSJanus {
 
 		// LTR->RTL fixes start here
 		$css = self::fixDirection($css);
-		if ($swapLtrRtlInURL) {
+		if ($options['transformDirInUrl']) {
 			$css = self::fixLtrRtlInURL($css);
 		}
 
-		if ($swapLeftRightInURL) {
+		if ($options['transformEdgeInUrl']) {
 			$css = self::fixLeftRightInURL($css);
 		}
 		$css = self::fixLeftAndRight($css);
@@ -169,6 +192,7 @@ class CSSJanus {
 		$css = self::fixBorderRadius($css);
 		$css = self::fixBackgroundPosition($css);
 		$css = self::fixShadows($css);
+		$css = self::fixTranslate($css);
 
 		// Detokenize stuff we tokenized before
 		$css = $comments->detokenize($css);
@@ -283,23 +307,78 @@ class CSSJanus {
 	 * @return string
 	 */
 	private static function fixBorderRadius($css) {
-		$css = preg_replace_callback(self::$patterns['border_radius'], function ($matches) {
-			$pre = $matches[1];
-			$values = $matches[2];
-			$numValues = count(preg_split('/\s+/', trim($values)));
-			switch ($numValues) {
-				case 4:
-					$values = preg_replace('/^(\S+)(\s*)(\S+)(\s*)(\S+)(\s*)(\S+)/', '$3$2$1$4$7$6$5', $values);
-					break;
-				case 3:
-				case 2:
-					$values = preg_replace('/^(\S+)(\s*)(\S+)/', '$3$2$1', $values);
-					break;
-			}
-			return $pre . $values;
-		}, $css);
+		return preg_replace_callback(
+			self::$patterns['border_radius'],
+			array('self', 'calculateBorderRadius'),
+			$css
+		);
+	}
 
-		return $css;
+	/**
+	 * Callback for fixBorderRadius()
+	 * @param $matches array
+	 * @return string
+	 */
+	private static function calculateBorderRadius($matches) {
+		$pre = $matches[1];
+		$firstGroup = array_filter(array_slice($matches, 2, 4), function ($match) {
+			return $match !== '';
+		});
+		$secondGroup = array_filter(array_slice($matches, 6, 4), function ($match) {
+			return $match !== '';
+		});
+		$post = $matches[10] ?: '';
+
+		if ($secondGroup) {
+			$values = self::flipBorderRadiusValues($firstGroup)
+				. ' / ' . self::flipBorderRadiusValues($secondGroup);
+		} else {
+			$values = self::flipBorderRadiusValues($firstGroup);
+		}
+
+		return $pre . $values . $post;
+	}
+
+	/**
+	 * Callback for fixBorderRadius()
+	 * @param array $values Matched values
+	 * @return string Flipped values
+	 */
+	private static function flipBorderRadiusValues($values) {
+		switch (count($values)) {
+			case 4:
+				$values = array($values[1], $values[0], $values[3], $values[2]);
+				break;
+			case 3:
+				$values = array($values[1], $values[0], $values[1], $values[2]);
+				break;
+			case 2:
+				$values = array($values[1], $values[0]);
+				break;
+			case 1:
+				$values = array($values[0]);
+				break;
+		}
+		return implode(' ', $values);
+	}
+
+	/**
+	 * Flips the sign of a CSS value, possibly with a unit.
+	 *
+	 * We can't just negate the value with unary minus due to the units.
+	 *
+	 * @param $cssValue string
+	 * @return string
+	 */
+	private static function flipSign($cssValue) {
+		// Don't mangle zeroes
+		if (floatval($cssValue) === 0.0) {
+			return $cssValue;
+		} elseif ($cssValue[0] === '-') {
+			return substr($cssValue, 1);
+		} else {
+			return "-" . $cssValue;
+		}
 	}
 
 	/**
@@ -309,29 +388,38 @@ class CSSJanus {
 	 * @return string
 	 */
 	private static function fixShadows($css) {
-		// Flips the sign of a CSS value, possibly with a unit.
-		// (We can't just negate the value with unary minus due to the units.)
-		$flipSign = function ($cssValue) {
-			// Don't mangle zeroes
-			if (floatval($cssValue) === 0.0) {
-				return $cssValue;
-			} elseif ($cssValue[0] === '-') {
-				return substr($cssValue, 1);
-			} else {
-				return "-" . $cssValue;
-			}
-		};
-
-		$css = preg_replace_callback(self::$patterns['box_shadow'], function ($matches) use ($flipSign) {
-			return $matches[1] . $flipSign($matches[2]);
+		$css = preg_replace_callback(self::$patterns['box_shadow'], function ($matches) {
+			return $matches[1] . self::flipSign($matches[2]);
 		}, $css);
 
-		$css = preg_replace_callback(self::$patterns['text_shadow1'], function ($matches) use ($flipSign) {
-			return $matches[1] . $matches[2] . $matches[3] . $flipSign($matches[4]);
+		$css = preg_replace_callback(self::$patterns['text_shadow1'], function ($matches) {
+			return $matches[1] . $matches[2] . $matches[3] . self::flipSign($matches[4]);
 		}, $css);
 
-		$css = preg_replace_callback(self::$patterns['text_shadow2'], function ($matches) use ($flipSign) {
-			return $matches[1] . $flipSign($matches[2]);
+		$css = preg_replace_callback(self::$patterns['text_shadow2'], function ($matches) {
+			return $matches[1] . $matches[2] . $matches[3] . self::flipSign($matches[4]);
+		}, $css);
+
+		$css = preg_replace_callback(self::$patterns['text_shadow3'], function ($matches) {
+			return $matches[1] . self::flipSign($matches[2]);
+		}, $css);
+
+		return $css;
+	}
+
+	/**
+	 * Negates horizontal offset in tranform: translate()
+	 *
+	 * @param $css string
+	 * @return string
+	 */
+	private static function fixTranslate($css) {
+		$css = preg_replace_callback(self::$patterns['translate'], function ($matches) {
+			return $matches[1] . $matches[2] . self::flipSign($matches[3]) . $matches[4];
+		}, $css);
+
+		$css = preg_replace_callback(self::$patterns['translate_x'], function ($matches) {
+			return $matches[1] . $matches[2] . self::flipSign($matches[3]) . $matches[4];
 		}, $css);
 
 		return $css;
@@ -375,9 +463,9 @@ class CSSJanus {
 			$idx = strpos($value, '.');
 			if ($idx !== false) {
 				$len = strlen($value) - $idx - 2;
-				$value = number_format(100 - $value, $len) . '%';
+				$value = number_format(100 - (float)$value, $len) . '%';
 			} else {
-				$value = (100 - $value) . '%';
+				$value = (100 - (float)$value) . '%';
 			}
 		}
 		return $matches[1] . $value;

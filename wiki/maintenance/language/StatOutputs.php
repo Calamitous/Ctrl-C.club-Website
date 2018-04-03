@@ -26,9 +26,9 @@
 /** A general output object. Need to be overridden */
 class StatsOutput {
 	function formatPercent( $subset, $total, $revert = false, $accuracy = 2 ) {
-		wfSuppressWarnings();
+		MediaWiki\suppressWarnings();
 		$return = sprintf( '%.' . $accuracy . 'f%%', 100 * $subset / $total );
-		wfRestoreWarnings();
+		MediaWiki\restoreWarnings();
 
 		return $return;
 	}
@@ -62,7 +62,7 @@ class WikiStatsOutput extends StatsOutput {
 			"problems, etc.), run <code>php maintenance/language/checkLanguage.php --lang=foo</code>.\n\n";
 		echo 'English (en) is excluded because it is the default localization';
 		if ( is_array( $wgDummyLanguageCodes ) ) {
-			$dummyCodes = array();
+			$dummyCodes = [];
 			foreach ( $wgDummyLanguageCodes as $dummyCode => $correctCode ) {
 				$dummyCodes[] = Language::fetchLanguageName( $dummyCode ) . ' (' . $dummyCode . ')';
 			}
@@ -92,9 +92,9 @@ class WikiStatsOutput extends StatsOutput {
 	}
 
 	function formatPercent( $subset, $total, $revert = false, $accuracy = 2 ) {
-		wfSuppressWarnings();
+		MediaWiki\suppressWarnings();
 		$v = round( 255 * $subset / $total );
-		wfRestoreWarnings();
+		MediaWiki\restoreWarnings();
 
 		if ( $revert ) {
 			# Weigh reverse with factor 20 so coloring takes effect more quickly as

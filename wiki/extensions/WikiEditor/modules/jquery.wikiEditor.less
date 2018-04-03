@@ -1,4 +1,4 @@
-@import "mediawiki.mixins";
+@import 'mediawiki.mixins';
 
 /*
  * CSS for WikiEditor jQuery plugin
@@ -8,14 +8,14 @@
 	position: relative;
 	clear: both;
 	width: 100%;
-	background-color: #E0EEf7;
+	background-color: #e0eef7;
 
 	textarea {
 		width: 100%;
 		border: 0;
 
 		&:focus {
-			outline: none;
+			outline: 0;
 		}
 	}
 
@@ -24,12 +24,12 @@
 	}
 
 	.wikiEditor-ui-view {
-		border: 1px solid silver;
+		border: 1px solid #c0c0c0;
 	}
 
 	.wikiEditor-ui-top {
 		position: relative;
-		border-bottom: 1px solid silver;
+		border-bottom: 1px solid #c0c0c0;
 	}
 
 	.wikiEditor-ui-left {
@@ -39,7 +39,7 @@
 
 	.wikiEditor-ui-right {
 		float: right;
-		background: #F3F3F3;
+		background: #f3f3f3;
 		overflow: hidden;
 	}
 }
@@ -52,37 +52,37 @@
 .wikiEditor-ui-controls {
 	float: left;
 	width: 100%;
-	background-color: white;
+	background-color: #fff;
 }
 
 .wikiEditor-ui-tabs {
 	float: left;
 	height: 2.5em;
 	margin-right: -1px;
-	background-color: white;
-	border-left: 1px solid silver;
-	border-top: 1px solid silver;
+	background-color: #fff;
+	border-left: 1px solid #c0c0c0;
+	border-top: 1px solid #c0c0c0;
 
 	div {
 		float: left;
 		height: 2.5em;
 		background-color: #f3f3f3;
-		border-right: 1px solid silver;
-		border-bottom: 1px solid silver;
+		border-right: 1px solid #c0c0c0;
+		border-bottom: 1px solid #c0c0c0;
 
 		a {
 			display: inline-block;
 			padding: 0 0.75em;
 			line-height: 2.5em;
-			color: #0645AD;
+			color: #0645ad;
 		}
 
 		&.current {
-			border-bottom: 1px solid white;
-			background-color: white;
+			border-bottom: 1px solid #fff;
+			background-color: #fff;
 
 			a {
-				color: #333333;
+				color: #333;
 
 				&:hover {
 					text-decoration: none;
@@ -96,9 +96,9 @@
 	float: right;
 	height: 2.5em;
 	margin-right: -1px;
-	background-color: white;
+	background-color: #fff;
 	padding-left: 1em;
-	border-top: 1px solid white;
+	border-top: 1px solid #fff;
 
 	button {
 		margin-left: 0.5em;
@@ -111,7 +111,7 @@
 
 .wikiEditor-ui-loading {
 	background: #f3f3f3;
-	border: 1px solid silver;
+	border: 1px solid #c0c0c0;
 	left: 0;
 	height: 100%;
 	margin: -1px;

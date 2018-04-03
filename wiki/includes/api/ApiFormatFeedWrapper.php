@@ -60,15 +60,6 @@ class ApiFormatFeedWrapper extends ApiFormatBase {
 	}
 
 	/**
-	 * Optimization - no need to sanitize data that will not be needed
-	 *
-	 * @return bool
-	 */
-	public function getNeedsRawData() {
-		return true;
-	}
-
-	/**
 	 * ChannelFeed doesn't give us a method to print errors in a friendly
 	 * manner, so just punt errors to the default printer.
 	 * @return bool
@@ -81,6 +72,7 @@ class ApiFormatFeedWrapper extends ApiFormatBase {
 	 * This class expects the result data to be in a custom format set by self::setResult()
 	 * $result['_feed'] - an instance of one of the $wgFeedClasses classes
 	 * $result['_feeditems'] - an array of FeedItem instances
+	 * @param bool $unused
 	 */
 	public function initPrinter( $unused = false ) {
 		parent::initPrinter( $unused );

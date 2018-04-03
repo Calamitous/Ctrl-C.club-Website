@@ -15,9 +15,11 @@ require_once $basePath . '/maintenance/Maintenance.php';
 class ExportSites extends Maintenance {
 
 	public function __construct() {
-		$this->mDescription = 'Exports site definitions the sites table to XML file';
+		$this->addDescription( 'Exports site definitions the sites table to XML file' );
 
-		$this->addArg( 'file', 'A file to write the XML to (see docs/sitelist.txt). Use "php://stdout" to write to stdout.', true );
+		$this->addArg( 'file', 'A file to write the XML to (see docs/sitelist.txt). ' .
+			'Use "php://stdout" to write to stdout.', true
+		);
 
 		parent::__construct();
 	}
@@ -34,14 +36,14 @@ class ExportSites extends Maintenance {
 
 		$handle = fopen( $file, 'w' );
 
-		if ( !$handle )  {
+		if ( !$handle ) {
 			$this->error( "Failed to open $file for writing.\n", 1 );
 		}
 
 		$exporter = new SiteExporter( $handle );
 
-		$sites = SiteSQLStore::newInstance()->getSites( 'recache' );
-		$exporter->exportSites( $sites );
+		$siteLookup = \MediaWiki\MediaWikiServices::getInstance()->getSiteLookup();
+		$exporter->exportSites( $siteLookup->getSites() );
 
 		fclose( $handle );
 
@@ -51,4 +53,4 @@ class ExportSites extends Maintenance {
 }
 
 $maintClass = 'ExportSites';
-require_once( RUN_MAINTENANCE_IF_MAIN );
+require_once RUN_MAINTENANCE_IF_MAIN;

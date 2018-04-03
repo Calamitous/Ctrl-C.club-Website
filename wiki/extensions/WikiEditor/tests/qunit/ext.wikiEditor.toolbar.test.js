@@ -1,8 +1,8 @@
 ( function ( $ ) {
 	QUnit.module( 'ext.wikiEditor.toolbar', QUnit.newMwEnvironment( {
 		setup: function () {
-			var $fixture = $( '#qunit-fixture' );
-			var $target = $( '<textarea id="wpTextBox1">' );
+			var $fixture = $( '#qunit-fixture' ),
+				$target = $( '<textarea id="wpTextBox1">' );
 			this.$target = $target;
 			$fixture.append( $target );
 			$target.wikiEditor( 'addModule', 'toolbar' );
@@ -78,7 +78,7 @@
 					label: 'Icons',
 					type: 'select',
 					list: {
-						wink : {
+						wink: {
 							label: 'Wink',
 							action: {
 								type: 'encapsulate',
@@ -87,7 +87,7 @@
 								}
 							}
 						},
-						frown : {
+						frown: {
 							label: 'Frown',
 							action: {
 								type: 'encapsulate',
@@ -96,7 +96,7 @@
 								}
 							}
 						},
-						bigSmile : {
+						bigSmile: {
 							label: 'Big smile',
 							action: {
 								type: 'encapsulate',
@@ -178,23 +178,23 @@
 		data = {
 			section: 'info',
 			page: 'colors',
-				rows: [
-					{
-						name: { text: 'Red' },
-						temp: { text: 'Warm' },
-						swatch: { html: '<div style="width: 10px; height: 10px; background-color: red;">' }
-					},
-					{
-						name: { text: 'Blue' },
-						temp: { text: 'Cold' },
-						swatch: { html: '<div style="width: 10px; height: 10px; background-color: blue;">' }
-					},
-					{
-						name: { text: 'Silver' },
-						temp: { text: 'Neutral' },
-						swatch: { html: '<div style="width: 10px; height: 10px; background-color: silver;">' }
-					}
-				]
+			rows: [
+				{
+					name: { text: 'Red' },
+					temp: { text: 'Warm' },
+					swatch: { html: '<div style="width: 10px; height: 10px; background-color: red;">' }
+				},
+				{
+					name: { text: 'Blue' },
+					temp: { text: 'Cold' },
+					swatch: { html: '<div style="width: 10px; height: 10px; background-color: blue;">' }
+				},
+				{
+					name: { text: 'Silver' },
+					temp: { text: 'Neutral' },
+					swatch: { html: '<div style="width: 10px; height: 10px; background-color: silver;">' }
+				}
+			]
 		};
 		assert.equal( this.$ui.find( '*[rel="info"].section *[rel="colors"].page tr td' ).length, 0, 'Before adding table rows' );
 		this.$target.wikiEditor( 'addToToolbar', data );

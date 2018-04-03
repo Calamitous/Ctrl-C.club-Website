@@ -32,25 +32,24 @@
 class SiteImporterTest extends PHPUnit_Framework_TestCase {
 
 	private function newSiteImporter( array $expectedSites, $errorCount ) {
-		$store = $this->getMock( 'SiteStore' );
+		$store = $this->getMockBuilder( 'SiteStore' )->getMock();
 
-		$self = $this;
 		$store->expects( $this->once() )
 			->method( 'saveSites' )
-			->will( $this->returnCallback( function ( $sites ) use ( $expectedSites, $self ) {
-				$self->assertSitesEqual( $expectedSites, $sites );
+			->will( $this->returnCallback( function ( $sites ) use ( $expectedSites ) {
+				$this->assertSitesEqual( $expectedSites, $sites );
 			} ) );
 
 		$store->expects( $this->any() )
 			->method( 'getSites' )
 			->will( $this->returnValue( new SiteList() ) );
 
-		$errorHandler = $this->getMock( 'Psr\Log\LoggerInterface' );
+		$errorHandler = $this->getMockBuilder( 'Psr\Log\LoggerInterface' )->getMock();
 		$errorHandler->expects( $this->exactly( $errorCount ) )
 			->method( 'error' );
 
 		$importer = new SiteImporter( $store );
-		$importer->setExceptionCallback( array( $errorHandler, 'error' ) );
+		$importer->setExceptionCallback( [ $errorHandler, 'error' ] );
 
 		return $importer;
 	}
@@ -83,22 +82,22 @@ class SiteImporterTest extends PHPUnit_Framework_TestCase {
 		$dewiki->setPath( MediaWikiSite::PATH_PAGE, 'http://de.wikipedia.org/wiki/' );
 		$dewiki->setSource( 'meta.wikimedia.org' );
 
-		return array(
-			'empty' => array(
+		return [
+			'empty' => [
 				'<sites></sites>',
-				array(),
-			),
-			'no sites' => array(
+				[],
+			],
+			'no sites' => [
 				'<sites><Foo><globalid>Foo</globalid></Foo><Bar><quux>Bla</quux></Bar></sites>',
-				array(),
-			),
-			'minimal' => array(
+				[],
+			],
+			'minimal' => [
 				'<sites>' .
 					'<site><globalid>Foo</globalid></site>' .
 				'</sites>',
-				array( $foo ),
-			),
-			'full' => array(
+				[ $foo ],
+			],
+			'full' => [
 				'<sites>' .
 					'<site><globalid>Foo</globalid></site>' .
 					'<site>' .
@@ -118,9 +117,9 @@ class SiteImporterTest extends PHPUnit_Framework_TestCase {
 						'<path type="page_path">http://de.wikipedia.org/wiki/</path>' .
 					'</site>' .
 				'</sites>',
-				array( $foo, $acme, $dewiki ),
-			),
-			'skip' => array(
+				[ $foo, $acme, $dewiki ],
+			],
+			'skip' => [
 				'<sites>' .
 					'<site><globalid>Foo</globalid></site>' .
 					'<site><barf>Foo</barf></site>' .
@@ -132,29 +131,29 @@ class SiteImporterTest extends PHPUnit_Framework_TestCase {
 						'<path type="link">http://acme.com/</path>' .
 					'</site>' .
 				'</sites>',
-				array( $foo, $acme ),
+				[ $foo, $acme ],
 				1
-			),
-		);
+			],
+		];
 	}
 
 	/**
 	 * @dataProvider provideImportFromXML
 	 */
-	public function testImportFromXML( $xml, array $expectedSites, $errorCount = 0 )  {
+	public function testImportFromXML( $xml, array $expectedSites, $errorCount = 0 ) {
 		$importer = $this->newSiteImporter( $expectedSites, $errorCount );
 		$importer->importFromXML( $xml );
 	}
 
-	public function testImportFromXML_malformed()  {
+	public function testImportFromXML_malformed() {
 		$this->setExpectedException( 'Exception' );
 
-		$store = $this->getMock( 'SiteStore' );
+		$store = $this->getMockBuilder( 'SiteStore' )->getMock();
 		$importer = new SiteImporter( $store );
 		$importer->importFromXML( 'THIS IS NOT XML' );
 	}
 
-	public function testImportFromFile()  {
+	public function testImportFromFile() {
 		$foo = Site::newForType( Site::TYPE_UNKNOWN );
 		$foo->setGlobalId( 'Foo' );
 
@@ -174,7 +173,7 @@ class SiteImporterTest extends PHPUnit_Framework_TestCase {
 		$dewiki->setPath( MediaWikiSite::PATH_PAGE, 'http://de.wikipedia.org/wiki/' );
 		$dewiki->setSource( 'meta.wikimedia.org' );
 
-		$importer = $this->newSiteImporter( array( $foo, $acme, $dewiki ), 0 );
+		$importer = $this->newSiteImporter( [ $foo, $acme, $dewiki ], 0 );
 
 		$file = __DIR__ . '/SiteImporterTest.xml';
 		$importer->importFromFile( $file );
@@ -186,7 +185,7 @@ class SiteImporterTest extends PHPUnit_Framework_TestCase {
 	 * @return array[]
 	 */
 	private function getSerializedSiteList( $sites ) {
-		$serialized = array();
+		$serialized = [];
 
 		foreach ( $sites as $site ) {
 			$key = $site->getGlobalId();

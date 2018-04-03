@@ -1,11 +1,11 @@
 {
 	"@metadata": {
 		"authors": [
-			"Kuvaly"
+			"Kuvaly",
+			"Kaszeba"
 		]
 	},
 	"wikieditor-preview-loading": "Ladowanié...",
-	"wikieditor-previewDialog-loading": "Ladowanié...",
 	"wikieditor-toolbar-loading": "Ladowanié...",
 	"wikieditor-toolbar-tool-bold": "Grëbi",
 	"wikieditor-toolbar-tool-bold-example": "Wëtłëszczony drëk",
@@ -37,14 +37,8 @@
 	"wikieditor-toolbar-tool-table-insert": "Wstôwi",
 	"wikieditor-toolbar-tool-table-cancel": "Anulujë",
 	"wikieditor-toolbar-tool-replace-button-findnext": "Nalezë pòstãpné",
-	"wikieditor-toolbar-tool-replace-close": "Anulujë",
+	"wikieditor-toolbar-tool-replace-close": "Zamkni",
 	"wikieditor-toolbar-section-characters": "Specjalnë céchów",
-	"wikieditor-toolbar-characters-page-ipa": "IPA",
-	"wikieditor-toolbar-characters-page-symbols": "Céchë",
-	"wikieditor-toolbar-characters-page-greek": "Grecczi",
-	"wikieditor-toolbar-characters-page-cyrillic": "Cërylica",
-	"wikieditor-toolbar-characters-page-arabic": "Arabsczi",
-	"wikieditor-toolbar-characters-page-hebrew": "Hebrajsczi",
 	"wikieditor-toolbar-section-help": "Pòmòc",
 	"wikieditor-toolbar-help-heading-description": "Òpis",
 	"wikieditor-toolbar-help-content-italic-description": "Kùrsywa",

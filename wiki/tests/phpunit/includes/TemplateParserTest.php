@@ -10,10 +10,9 @@ class TemplateParserTest extends MediaWikiTestCase {
 	protected function setUp() {
 		parent::setUp();
 
-		$this->setMwGlobals( array(
+		$this->setMwGlobals( [
 			'wgSecretKey' => 'foo',
-			'wgMemc' => new EmptyBagOStuff(),
-		) );
+		] );
 
 		$this->templateDir = dirname( __DIR__ ) . '/data/templates/';
 	}
@@ -33,31 +32,94 @@ class TemplateParserTest extends MediaWikiTestCase {
 	}
 
 	public static function provideProcessTemplate() {
-		return array(
-			array(
+		return [
+			[
 				'foobar',
-				array(),
+				[],
 				"hello world!\n"
-			),
-			array(
+			],
+			[
 				'foobar_args',
-				array(
+				[
 					'planet' => 'world',
-				),
+				],
 				"hello world!\n",
-			),
-			array(
+			],
+			[
 				'../foobar',
-				array(),
+				[],
 				false,
 				'UnexpectedValueException'
-			),
-			array(
+			],
+			[
+				"\000../foobar",
+				[],
+				false,
+				'UnexpectedValueException'
+			],
+			[
+				'/',
+				[],
+				false,
+				'UnexpectedValueException'
+			],
+			[
+				// Allegedly this can strip ext in windows.
+				'baz<',
+				[],
+				false,
+				'UnexpectedValueException'
+			],
+			[
+				'\\foo',
+				[],
+				false,
+				'UnexpectedValueException'
+			],
+			[
+				'C:\bar',
+				[],
+				false,
+				'UnexpectedValueException'
+			],
+			[
+				"foo\000bar",
+				[],
+				false,
+				'UnexpectedValueException'
+			],
+			[
 				'nonexistenttemplate',
-				array(),
+				[],
 				false,
 				'RuntimeException',
-			)
-		);
+			],
+			[
+				'has_partial',
+				[
+					'planet' => 'world',
+				],
+				"Partial hello world!\n in here\n",
+			],
+			[
+				'bad_partial',
+				[],
+				false,
+				'Exception',
+			],
+		];
 	}
+
+	public function testEnableRecursivePartials() {
+		$tp = new TemplateParser( $this->templateDir );
+		$data = [ 'r' => [ 'r' => [ 'r' => [] ] ] ];
+
+		$tp->enableRecursivePartials( true );
+		$this->assertEquals( 'rrr', $tp->processTemplate( 'recurse', $data ) );
+
+		$tp->enableRecursivePartials( false );
+		$this->setExpectedException( 'Exception' );
+		$tp->processTemplate( 'recurse', $data );
+	}
+
 }

@@ -20,6 +20,10 @@
  * @file
  */
 
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
+
 /**
  * Class to handle concurrent HTTP requests
  *
@@ -35,34 +39,40 @@
  *                use application/x-www-form-urlencoded (headers sent automatically)
  *   - stream   : resource to stream the HTTP response body to
  *   - proxy    : HTTP proxy to use
+ *   - flags    : map of boolean flags which supports:
+ *                  - relayResponseHeaders : write out header via header()
  * Request maps can use integer index 0 instead of 'method' and 1 instead of 'url'.
  *
- * @author Aaron Schulz
  * @since 1.23
  */
-class MultiHttpClient {
+class MultiHttpClient implements LoggerAwareInterface {
 	/** @var resource */
 	protected $multiHandle = null; // curl_multi handle
 	/** @var string|null SSL certificates path  */
 	protected $caBundlePath;
-	/** @var integer */
+	/** @var int */
 	protected $connTimeout = 10;
-	/** @var integer */
+	/** @var int */
 	protected $reqTimeout = 300;
 	/** @var bool */
 	protected $usePipelining = false;
-	/** @var integer */
+	/** @var int */
 	protected $maxConnsPerHost = 50;
 	/** @var string|null proxy */
 	protected $proxy;
+	/** @var string */
+	protected $userAgent = 'wikimedia/multi-http-client v1.0';
+	/** @var LoggerInterface */
+	protected $logger;
 
 	/**
 	 * @param array $options
-	 *   - connTimeout     : default connection timeout
-	 *   - reqTimeout      : default request timeout
+	 *   - connTimeout     : default connection timeout (seconds)
+	 *   - reqTimeout      : default request timeout (seconds)
 	 *   - proxy           : HTTP proxy to use
 	 *   - usePipelining   : whether to use HTTP pipelining if possible (for all hosts)
 	 *   - maxConnsPerHost : maximum number of concurrent connections (per host)
+	 *   - userAgent       : The User-Agent header value to send
 	 * @throws Exception
 	 */
 	public function __construct( array $options ) {
@@ -72,11 +82,17 @@ class MultiHttpClient {
 				throw new Exception( "Cannot find CA bundle: " . $this->caBundlePath );
 			}
 		}
-		static $opts = array( 'connTimeout', 'reqTimeout', 'usePipelining', 'maxConnsPerHost', 'proxy' );
+		static $opts = [
+			'connTimeout', 'reqTimeout', 'usePipelining', 'maxConnsPerHost',
+			'proxy', 'userAgent', 'logger'
+		];
 		foreach ( $opts as $key ) {
 			if ( isset( $options[$key] ) ) {
 				$this->$key = $options[$key];
 			}
+		}
+		if ( $this->logger === null ) {
+			$this->logger = new NullLogger;
 		}
 	}
 
@@ -84,24 +100,23 @@ class MultiHttpClient {
 	 * Execute an HTTP(S) request
 	 *
 	 * This method returns a response map of:
- 	 *   - code    : HTTP response code or 0 if there was a serious cURL error
- 	 *   - reason  : HTTP response reason (empty if there was a serious cURL error)
- 	 *   - headers : <header name/value associative array>
- 	 *   - body    : HTTP response body or resource (if "stream" was set)
+	 *   - code    : HTTP response code or 0 if there was a serious cURL error
+	 *   - reason  : HTTP response reason (empty if there was a serious cURL error)
+	 *   - headers : <header name/value associative array>
+	 *   - body    : HTTP response body or resource (if "stream" was set)
 	 *   - error     : Any cURL error string
- 	 * The map also stores integer-indexed copies of these values. This lets callers do:
-	 *	<code>
+	 * The map also stores integer-indexed copies of these values. This lets callers do:
+	 * @code
 	 *		list( $rcode, $rdesc, $rhdrs, $rbody, $rerr ) = $http->run( $req );
-	 *  </code>
+	 * @endcode
 	 * @param array $req HTTP request array
 	 * @param array $opts
-	 *   - connTimeout    : connection timeout per request
-	 *   - reqTimeout     : post-connection timeout per request
+	 *   - connTimeout    : connection timeout per request (seconds)
+	 *   - reqTimeout     : post-connection timeout per request (seconds)
 	 * @return array Response array for request
 	 */
-	final public function run( array $req, array $opts = array() ) {
-		$req = $this->runMulti( array( $req ), $opts );
-		return $req[0]['response'];
+	public function run( array $req, array $opts = [] ) {
+		return $this->runMulti( [ $req ], $opts )[0]['response'];
 	}
 
 	/**
@@ -114,35 +129,35 @@ class MultiHttpClient {
 	 *   - body    : HTTP response body or resource (if "stream" was set)
 	 *   - error   : Any cURL error string
 	 * The map also stores integer-indexed copies of these values. This lets callers do:
-	 *    <code>
+	 * @code
 	 *        list( $rcode, $rdesc, $rhdrs, $rbody, $rerr ) = $req['response'];
-	 *  </code>
+	 * @endcode
 	 * All headers in the 'headers' field are normalized to use lower case names.
 	 * This is true for the request headers and the response headers. Integer-indexed
 	 * method/URL entries will also be changed to use the corresponding string keys.
 	 *
 	 * @param array $reqs Map of HTTP request arrays
 	 * @param array $opts
-	 *   - connTimeout     : connection timeout per request
-	 *   - reqTimeout      : post-connection timeout per request
+	 *   - connTimeout     : connection timeout per request (seconds)
+	 *   - reqTimeout      : post-connection timeout per request (seconds)
 	 *   - usePipelining   : whether to use HTTP pipelining if possible
 	 *   - maxConnsPerHost : maximum number of concurrent connections (per host)
 	 * @return array $reqs With response array populated for each
 	 * @throws Exception
 	 */
-	public function runMulti( array $reqs, array $opts = array() ) {
+	public function runMulti( array $reqs, array $opts = [] ) {
 		$chm = $this->getCurlMulti();
 
 		// Normalize $reqs and add all of the required cURL handles...
-		$handles = array();
+		$handles = [];
 		foreach ( $reqs as $index => &$req ) {
-			$req['response'] = array(
+			$req['response'] = [
 				'code'     => 0,
 				'reason'   => '',
-				'headers'  => array(),
+				'headers'  => [],
 				'body'     => '',
 				'error'    => ''
-			);
+			];
 			if ( isset( $req[0] ) ) {
 				$req['method'] = $req[0]; // short-form
 				unset( $req[0] );
@@ -156,8 +171,9 @@ class MultiHttpClient {
 			} elseif ( !isset( $req['url'] ) ) {
 				throw new Exception( "Request has no 'url' field set." );
 			}
-			$req['query'] = isset( $req['query'] ) ? $req['query'] : array();
-			$headers = array(); // normalized headers
+			$this->logger->debug( "{$req['method']}: {$req['url']}" );
+			$req['query'] = isset( $req['query'] ) ? $req['query'] : [];
+			$headers = []; // normalized headers
 			if ( isset( $req['headers'] ) ) {
 				foreach ( $req['headers'] as $name => $value ) {
 					$headers[strtolower( $name )] = $value;
@@ -168,6 +184,7 @@ class MultiHttpClient {
 				$req['body'] = '';
 				$req['headers']['content-length'] = 0;
 			}
+			$req['flags'] = isset( $req['flags'] ) ? $req['flags'] : [];
 			$handles[$index] = $this->getCurlHandle( $req, $opts );
 			if ( count( $reqs ) > 1 ) {
 				// https://github.com/guzzle/guzzle/issues/349
@@ -177,18 +194,17 @@ class MultiHttpClient {
 		unset( $req ); // don't assign over this by accident
 
 		$indexes = array_keys( $reqs );
-		if ( function_exists( 'curl_multi_setopt' ) ) { // PHP 5.5
-			if ( isset( $opts['usePipelining'] ) ) {
-				curl_multi_setopt( $chm, CURLMOPT_PIPELINING, (int)$opts['usePipelining'] );
-			}
-			if ( isset( $opts['maxConnsPerHost'] ) ) {
-				// Keep these sockets around as they may be needed later in the request
-				curl_multi_setopt( $chm, CURLMOPT_MAXCONNECTS, (int)$opts['maxConnsPerHost'] );
-			}
+		if ( isset( $opts['usePipelining'] ) ) {
+			curl_multi_setopt( $chm, CURLMOPT_PIPELINING, (int)$opts['usePipelining'] );
+		}
+		if ( isset( $opts['maxConnsPerHost'] ) ) {
+			// Keep these sockets around as they may be needed later in the request
+			curl_multi_setopt( $chm, CURLMOPT_MAXCONNECTS, (int)$opts['maxConnsPerHost'] );
 		}
 
 		// @TODO: use a per-host rolling handle window (e.g. CURLMOPT_MAX_HOST_CONNECTIONS)
 		$batches = array_chunk( $indexes, $this->maxConnsPerHost );
+		$infos = [];
 
 		foreach ( $batches as $batch ) {
 			// Attach all cURL handles for this batch
@@ -201,11 +217,15 @@ class MultiHttpClient {
 				// Do any available work...
 				do {
 					$mrc = curl_multi_exec( $chm, $active );
+					$info = curl_multi_info_read( $chm );
+					if ( $info !== false ) {
+						$infos[(int)$info['handle']] = $info;
+					}
 				} while ( $mrc == CURLM_CALL_MULTI_PERFORM );
 				// Wait (if possible) for available work...
 				if ( $active > 0 && $mrc == CURLM_OK ) {
 					if ( curl_multi_select( $chm, 10 ) == -1 ) {
-						// PHP bug 63411; http://curl.haxx.se/libcurl/c/curl_multi_fdset.html
+						// PHP bug 63411; https://curl.haxx.se/libcurl/c/curl_multi_fdset.html
 						usleep( 5000 ); // 5ms
 					}
 				}
@@ -216,10 +236,22 @@ class MultiHttpClient {
 		foreach ( $reqs as $index => &$req ) {
 			$ch = $handles[$index];
 			curl_multi_remove_handle( $chm, $ch );
-			if ( curl_errno( $ch ) !== 0 ) {
-				$req['response']['error'] = "(curl error: " .
-					curl_errno( $ch ) . ") " . curl_error( $ch );
+
+			if ( isset( $infos[(int)$ch] ) ) {
+				$info = $infos[(int)$ch];
+				$errno = $info['result'];
+				if ( $errno !== 0 ) {
+					$req['response']['error'] = "(curl error: $errno)";
+					if ( function_exists( 'curl_strerror' ) ) {
+						$req['response']['error'] .= " " . curl_strerror( $errno );
+					}
+					$this->logger->warning( "Error fetching URL \"{$req['url']}\": " .
+						$req['response']['error'] );
+				}
+			} else {
+				$req['response']['error'] = "(curl error: no status set)";
 			}
+
 			// For convenience with the list() operator
 			$req['response'][0] = $req['response']['code'];
 			$req['response'][1] = $req['response']['reason'];
@@ -236,23 +268,21 @@ class MultiHttpClient {
 		unset( $req ); // don't assign over this by accident
 
 		// Restore the default settings
-		if ( function_exists( 'curl_multi_setopt' ) ) { // PHP 5.5
-			curl_multi_setopt( $chm, CURLMOPT_PIPELINING, (int)$this->usePipelining );
-			curl_multi_setopt( $chm, CURLMOPT_MAXCONNECTS, (int)$this->maxConnsPerHost );
-		}
+		curl_multi_setopt( $chm, CURLMOPT_PIPELINING, (int)$this->usePipelining );
+		curl_multi_setopt( $chm, CURLMOPT_MAXCONNECTS, (int)$this->maxConnsPerHost );
 
 		return $reqs;
 	}
 
 	/**
-	 * @param array $req HTTP request map
+	 * @param array &$req HTTP request map
 	 * @param array $opts
 	 *   - connTimeout    : default connection timeout
 	 *   - reqTimeout     : default request timeout
 	 * @return resource
 	 * @throws Exception
 	 */
-	protected function getCurlHandle( array &$req, array $opts = array() ) {
+	protected function getCurlHandle( array &$req, array $opts = [] ) {
 		$ch = curl_init();
 
 		curl_setopt( $ch, CURLOPT_CONNECTTIMEOUT,
@@ -270,12 +300,7 @@ class MultiHttpClient {
 		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1 );
 
 		$url = $req['url'];
-		// PHP_QUERY_RFC3986 is PHP 5.4+ only
-		$query = str_replace(
-			array( '+', '%7E' ),
-			array( '%20', '~' ),
-			http_build_query( $req['query'], '', '&' )
-		);
+		$query = http_build_query( $req['query'], '', '&', PHP_QUERY_RFC3986 );
 		if ( $query != '' ) {
 			$url .= strpos( $req['url'], '?' ) === false ? "?$query" : "&$query";
 		}
@@ -318,6 +343,19 @@ class MultiHttpClient {
 			);
 		} elseif ( $req['method'] === 'POST' ) {
 			curl_setopt( $ch, CURLOPT_POST, 1 );
+			// Don't interpret POST parameters starting with '@' as file uploads, because this
+			// makes it impossible to POST plain values starting with '@' (and causes security
+			// issues potentially exposing the contents of local files).
+			// The PHP manual says this option was introduced in PHP 5.5 defaults to true in PHP 5.6,
+			// but we support lower versions, and the option doesn't exist in HHVM 5.6.99.
+			if ( defined( 'CURLOPT_SAFE_UPLOAD' ) ) {
+				curl_setopt( $ch, CURLOPT_SAFE_UPLOAD, true );
+			} elseif ( is_array( $req['body'] ) ) {
+				// In PHP 5.2 and later, '@' is interpreted as a file upload if POSTFIELDS
+				// is an array, but not if it's a string. So convert $req['body'] to a string
+				// for safety.
+				$req['body'] = http_build_query( $req['body'] );
+			}
 			curl_setopt( $ch, CURLOPT_POSTFIELDS, $req['body'] );
 		} else {
 			if ( is_resource( $req['body'] ) || $req['body'] !== '' ) {
@@ -326,7 +364,11 @@ class MultiHttpClient {
 			$req['headers']['content-length'] = 0;
 		}
 
-		$headers = array();
+		if ( !isset( $req['headers']['user-agent'] ) ) {
+			$req['headers']['user-agent'] = $this->userAgent;
+		}
+
+		$headers = [];
 		foreach ( $req['headers'] as $name => $value ) {
 			if ( strpos( $name, ': ' ) ) {
 				throw new Exception( "Headers cannot have ':' in the name." );
@@ -337,8 +379,11 @@ class MultiHttpClient {
 
 		curl_setopt( $ch, CURLOPT_HEADERFUNCTION,
 			function ( $ch, $header ) use ( &$req ) {
+				if ( !empty( $req['flags']['relayResponseHeaders'] ) ) {
+					header( $header );
+				}
 				$length = strlen( $header );
-				$matches = array();
+				$matches = [];
 				if ( preg_match( "/^(HTTP\/1\.[01]) (\d{3}) (.*)/", $header, $matches ) ) {
 					$req['response']['code'] = (int)$matches[2];
 					$req['response']['reason'] = trim( $matches[3] );
@@ -380,13 +425,20 @@ class MultiHttpClient {
 	protected function getCurlMulti() {
 		if ( !$this->multiHandle ) {
 			$cmh = curl_multi_init();
-			if ( function_exists( 'curl_multi_setopt' ) ) { // PHP 5.5
-				curl_multi_setopt( $cmh, CURLMOPT_PIPELINING, (int)$this->usePipelining );
-				curl_multi_setopt( $cmh, CURLMOPT_MAXCONNECTS, (int)$this->maxConnsPerHost );
-			}
+			curl_multi_setopt( $cmh, CURLMOPT_PIPELINING, (int)$this->usePipelining );
+			curl_multi_setopt( $cmh, CURLMOPT_MAXCONNECTS, (int)$this->maxConnsPerHost );
 			$this->multiHandle = $cmh;
 		}
 		return $this->multiHandle;
+	}
+
+	/**
+	 * Register a logger
+	 *
+	 * @param LoggerInterface $logger
+	 */
+	public function setLogger( LoggerInterface $logger ) {
+		$this->logger = $logger;
 	}
 
 	function __destruct() {

@@ -1,14 +1,17 @@
 {
-	"name": "Title Blacklist",
+	"name": "TitleBlacklist",
 	"version": "1.5.0",
 	"author": [
 		"Victor Vasiliev",
 		"Fran Rogers"
 	],
-	"url": "https://www.mediawiki.org/wiki/Extension:Title_Blacklist",
+	"url": "https://www.mediawiki.org/wiki/Extension:TitleBlacklist",
 	"descriptionmsg": "titleblacklist-desc",
 	"license-name": "GPL-2.0+",
 	"type": "antispam",
+	"requires": {
+		"MediaWiki": ">= 1.27.0"
+	},
 	"GroupPermissions": {
 		"sysop": {
 			"tboverride": true,
@@ -29,6 +32,11 @@
 	"LogActionsHandlers": {
 		"titleblacklist/*": "LogFormatter"
 	},
+	"GrantPermissions": {
+		"viewrestrictedlogs": {
+			"titleblacklistlog": true
+		}
+	},
 	"APIModules": {
 		"titleblacklist": "ApiQueryTitleBlacklist"
 	},
@@ -41,6 +49,8 @@
 		"TitleBlacklist": "TitleBlacklist.list.php",
 		"TitleBlacklistEntry": "TitleBlacklist.list.php",
 		"TitleBlacklistHooks": "TitleBlacklist.hooks.php",
+		"TitleBlacklistAuthenticationRequest": "TitleBlacklistAuthenticationRequest.php",
+		"TitleBlacklistPreAuthenticationProvider": "TitleBlacklistPreAuthenticationProvider.php",
 		"Scribunto_LuaTitleBlacklistLibrary": "TitleBlacklist.library.php",
 		"ApiQueryTitleBlacklist": "api/ApiQueryTitleBlacklist.php"
 	},
@@ -49,13 +59,15 @@
 			"scripts": "mediawiki.api.titleblacklist.js",
 			"dependencies": [
 				"mediawiki.api"
-			]
+			],
+			"targets": [ "desktop", "mobile" ]
 		}
 	},
 	"ResourceFileModulePaths": {
 		"localBasePath": "modules",
 		"remoteExtPath": "TitleBlacklist/modules"
 	},
+	"callback": "TitleBlacklistHooks::onRegistration",
 	"Hooks": {
 		"getUserPermissionsErrorsExpensive": [
 			"TitleBlacklistHooks::userCan"
@@ -63,29 +75,14 @@
 		"TitleGetEditNotices": [
 			"TitleBlacklistHooks::displayBlacklistOverrideNotice"
 		],
-		"AbortMove": [
-			"TitleBlacklistHooks::abortMove"
-		],
 		"MovePageCheckPermissions": [
 			"TitleBlacklistHooks::onMovePageCheckPermissions"
-		],
-		"AbortNewAccount": [
-			"TitleBlacklistHooks::abortNewAccount"
-		],
-		"AbortAutoAccount": [
-			"TitleBlacklistHooks::abortNewAccount"
 		],
 		"EditFilter": [
 			"TitleBlacklistHooks::validateBlacklist"
 		],
-		"ArticleSaveComplete": [
+		"PageContentSaveComplete": [
 			"TitleBlacklistHooks::clearBlacklist"
-		],
-		"UserCreateForm": [
-			"TitleBlacklistHooks::addOverrideCheckbox"
-		],
-		"UnitTestsList": [
-			"TitleBlacklistHooks::unitTestsList"
 		],
 		"ScribuntoExternalLibraries": [
 			"TitleBlacklistHooks::scribuntoExternalLibraries"
@@ -99,6 +96,8 @@
 			"warningchance": 100,
 			"expiry": 900,
 			"warningexpiry": 600
-		}
-	}
+		},
+		"TitleBlacklistBlockAutoAccountCreation": true
+	},
+	"manifest_version": 1
 }

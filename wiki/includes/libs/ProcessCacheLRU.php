@@ -20,6 +20,7 @@
  * @file
  * @ingroup Cache
  */
+use Wikimedia\Assert\Assert;
 
 /**
  * Handles per process caching of items
@@ -27,10 +28,10 @@
  */
 class ProcessCacheLRU {
 	/** @var Array */
-	protected $cache = array(); // (key => prop => value)
+	protected $cache = []; // (key => prop => value)
 
 	/** @var Array */
-	protected $cacheTimes = array(); // (key => prop => UNIX timestamp)
+	protected $cacheTimes = []; // (key => prop => UNIX timestamp)
 
 	protected $maxCacheKeys; // integer; max entries
 
@@ -54,7 +55,7 @@ class ProcessCacheLRU {
 	 */
 	public function set( $key, $prop, $value ) {
 		if ( isset( $this->cache[$key] ) ) {
-			$this->ping( $key ); // push to top
+			$this->ping( $key );
 		} elseif ( count( $this->cache ) >= $this->maxCacheKeys ) {
 			reset( $this->cache );
 			$evictKey = key( $this->cache );
@@ -93,13 +94,11 @@ class ProcessCacheLRU {
 	 * @return mixed
 	 */
 	public function get( $key, $prop ) {
-		if ( isset( $this->cache[$key][$prop] ) ) {
-			// push to top
-			$this->ping( $key );
-			return $this->cache[$key][$prop];
-		} else {
+		if ( !isset( $this->cache[$key][$prop] ) ) {
 			return null;
 		}
+		$this->ping( $key );
+		return $this->cache[$key][$prop];
 	}
 
 	/**
@@ -110,8 +109,8 @@ class ProcessCacheLRU {
 	 */
 	public function clear( $keys = null ) {
 		if ( $keys === null ) {
-			$this->cache = array();
-			$this->cacheTimes = array();
+			$this->cache = [];
+			$this->cacheTimes = [];
 		} else {
 			foreach ( (array)$keys as $key ) {
 				unset( $this->cache[$key] );
@@ -128,9 +127,9 @@ class ProcessCacheLRU {
 	 * @throws UnexpectedValueException
 	 */
 	public function resize( $maxKeys ) {
-		if ( !is_int( $maxKeys ) || $maxKeys < 1 ) {
-			throw new UnexpectedValueException( __METHOD__ . " must be given an integer >= 1" );
-		}
+		Assert::parameterType( 'integer', $maxKeys, '$maxKeys' );
+		Assert::parameter( $maxKeys > 0, '$maxKeys', 'must be above zero' );
+
 		$this->maxCacheKeys = $maxKeys;
 		while ( count( $this->cache ) > $this->maxCacheKeys ) {
 			reset( $this->cache );
@@ -149,5 +148,13 @@ class ProcessCacheLRU {
 		$item = $this->cache[$key];
 		unset( $this->cache[$key] );
 		$this->cache[$key] = $item;
+	}
+
+	/**
+	 * Get cache size
+	 * @return int
+	 */
+	public function getSize() {
+		return $this->maxCacheKeys;
 	}
 }

@@ -37,12 +37,16 @@
  * @since 1.23
  */
 class SpecialDiff extends RedirectSpecialPage {
-	function __construct() {
+	public function __construct() {
 		parent::__construct( 'Diff' );
-		$this->mAllowedRedirectParams = array();
+		$this->mAllowedRedirectParams = [];
 	}
 
-	function getRedirect( $subpage ) {
+	/**
+	 * @param string|null $subpage
+	 * @return Title|bool
+	 */
+	public function getRedirect( $subpage ) {
 		$parts = explode( '/', $subpage );
 
 		// Try to parse the values given, generating somewhat pretty URLs if possible
@@ -52,11 +56,64 @@ class SpecialDiff extends RedirectSpecialPage {
 			$this->mAddedRedirectParams['oldid'] = $parts[0];
 			$this->mAddedRedirectParams['diff'] = $parts[1];
 		} else {
-			// Wrong number of parameters, bail out
-			$this->addHelpLink( 'Help:Diff' );
-			throw new ErrorPageError( 'nopagetitle', 'nopagetext' );
+			return false;
 		}
 
 		return true;
+	}
+
+	protected function showNoRedirectPage() {
+		$this->addHelpLink( 'Help:Diff' );
+		$this->setHeaders();
+		$this->outputHeader();
+		$this->showForm();
+	}
+
+	private function showForm() {
+		$form = HTMLForm::factory( 'ooui', [
+			'oldid' => [
+				'name' => 'oldid',
+				'type' => 'int',
+				'label-message' => 'diff-form-oldid',
+			],
+			'diff' => [
+				'name' => 'diff',
+				'class' => 'HTMLTextField',
+				'label-message' => 'diff-form-revid',
+			],
+		], $this->getContext(), 'diff-form' );
+		$form->setSubmitTextMsg( 'diff-form-submit' );
+		$form->setSubmitCallback( [ $this, 'onFormSubmit' ] );
+		$form->show();
+	}
+
+	public function onFormSubmit( $formData ) {
+		$params = [];
+		if ( $formData['oldid'] ) {
+			$params[] = $formData['oldid'];
+		}
+		if ( $formData['diff'] ) {
+			$params[] = $formData['diff'];
+		}
+		$title = $this->getPageTitle( $params ? implode( '/', $params ) : null );
+		$url = $title->getFullUrlForRedirect();
+		$this->getOutput()->redirect( $url );
+	}
+
+	public function getDescription() {
+		// 'diff' message is in lowercase, using own message
+		return $this->msg( 'diff-form' )->text();
+	}
+
+	public function getName() {
+		return 'diff-form';
+	}
+
+	public function isListed() {
+		return true;
+	}
+
+	protected function getGroupName() {
+		return 'redirects';
 	}
 }

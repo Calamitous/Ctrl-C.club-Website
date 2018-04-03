@@ -32,7 +32,7 @@ class ApiSpamBlacklist extends ApiBase {
 
 	public function execute() {
 		$params = $this->extractRequestParams();
-		$matches = BaseBlacklist::getInstance( 'spam' )->filter( $params['url'], NULL, true );
+		$matches = BaseBlacklist::getInstance( 'spam' )->filter( $params['url'], null, true );
 		$res = $this->getResult();
 
 		if ( $matches !== false ) {
@@ -47,51 +47,25 @@ class ApiSpamBlacklist extends ApiBase {
 	}
 
 	public function getAllowedParams() {
-		return array(
-			'url' => array(
+		return [
+			'url' => [
 				ApiBase::PARAM_REQUIRED => true,
 				ApiBase::PARAM_ISMULTI => true,
-			)
-		);
-	}
-
-	/**
-	 * @deprecated since MediaWiki core 1.25
-	 */
-	public function getParamDescription() {
-		return array(
-			'url' => 'A pipe-separated list of URLs to validate against the blacklist',
-		);
-	}
-
-	/**
-	 * @deprecated since MediaWiki core 1.25
-	 */
-	public function getDescription() {
-		return 'Validate one or more URLs against the SpamBlacklist.';
-	}
-
-	/**
-	 * @deprecated since MediaWiki core 1.25
-	 */
-	public function getExamples() {
-		return array(
-			'api.php?action=spamblacklist&url=http%3A%2F%2Fwww.example.com%2F%7Chttp%3A%2F%2Fwww.example.org%2F',
-			'api.php?action=spamblacklist&url=https%3A%2F%2Fwww.example.net%2Findex.php',
-		);
+			]
+		];
 	}
 
 	/**
 	 * @see ApiBase::getExamplesMessages()
 	 */
 	protected function getExamplesMessages() {
-		return array(
+		return [
 			'action=spamblacklist&url=http://www.example.com/|http://www.example.org/'
 				=> 'apihelp-spamblacklist-example-1',
-		);
+		];
 	}
 
 	public function getHelpUrls() {
-		return array( 'https://www.mediawiki.org/wiki/Extension:SpamBlacklist/API' );
+		return [ 'https://www.mediawiki.org/wiki/Extension:SpamBlacklist/API' ];
 	}
 }

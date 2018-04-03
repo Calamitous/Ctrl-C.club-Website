@@ -27,43 +27,94 @@
  * @ingroup Cache
  */
 class APCBagOStuff extends BagOStuff {
-	public function get( $key, &$casToken = null ) {
-		$val = apc_fetch( $key );
 
-		$casToken = $val;
+	/**
+	 * @var bool If true, trust the APC implementation to serialize and
+	 * deserialize objects correctly. If false, (de-)serialize in PHP.
+	 */
+	protected $nativeSerialize;
 
-		if ( is_string( $val ) ) {
-			if ( $this->isInteger( $val ) ) {
-				$val = intval( $val );
-			} else {
-				$val = unserialize( $val );
-			}
+	/**
+	 * @var string String to append to each APC key. This may be changed
+	 *  whenever the handling of values is changed, to prevent existing code
+	 *  from encountering older values which it cannot handle.
+	 */
+	const KEY_SUFFIX = ':2';
+
+	/**
+	 * Available parameters are:
+	 *   - nativeSerialize:     If true, pass objects to apc_store(), and trust it
+	 *                          to serialize them correctly. If false, serialize
+	 *                          all values in PHP.
+	 *
+	 * @param array $params
+	 */
+	public function __construct( array $params = [] ) {
+		parent::__construct( $params );
+
+		if ( isset( $params['nativeSerialize'] ) ) {
+			$this->nativeSerialize = $params['nativeSerialize'];
+		} elseif ( extension_loaded( 'apcu' ) && ini_get( 'apc.serializer' ) === 'default' ) {
+			// APCu has a memory corruption bug when the serializer is set to 'default'.
+			// See T120267, and upstream bug reports:
+			//  - https://github.com/krakjoe/apcu/issues/38
+			//  - https://github.com/krakjoe/apcu/issues/35
+			//  - https://github.com/krakjoe/apcu/issues/111
+			$this->logger->warning(
+				'The APCu extension is loaded and the apc.serializer INI setting ' .
+				'is set to "default". This can cause memory corruption! ' .
+				'You should change apc.serializer to "php" instead. ' .
+				'See <https://github.com/krakjoe/apcu/issues/38>.'
+			);
+			$this->nativeSerialize = false;
+		} else {
+			$this->nativeSerialize = true;
 		}
-
-		return $val;
 	}
 
-	public function set( $key, $value, $exptime = 0 ) {
-		if ( !$this->isInteger( $value ) ) {
-			$value = serialize( $value );
-		}
+	protected function doGet( $key, $flags = 0 ) {
+		return $this->getUnserialize(
+			apc_fetch( $key . self::KEY_SUFFIX )
+		);
+	}
 
-		apc_store( $key, $value, $exptime );
+	protected function getUnserialize( $value ) {
+		if ( is_string( $value ) && !$this->nativeSerialize ) {
+			$value = $this->isInteger( $value )
+				? intval( $value )
+				: unserialize( $value );
+		}
+		return $value;
+	}
+
+	public function set( $key, $value, $exptime = 0, $flags = 0 ) {
+		apc_store(
+			$key . self::KEY_SUFFIX,
+			$this->setSerialize( $value ),
+			$exptime
+		);
 
 		return true;
 	}
 
+	protected function setSerialize( $value ) {
+		if ( !$this->nativeSerialize && !$this->isInteger( $value ) ) {
+			$value = serialize( $value );
+		}
+		return $value;
+	}
+
 	public function delete( $key ) {
-		apc_delete( $key );
+		apc_delete( $key . self::KEY_SUFFIX );
 
 		return true;
 	}
 
 	public function incr( $key, $value = 1 ) {
-		return apc_inc( $key, $value );
+		return apc_inc( $key . self::KEY_SUFFIX, $value );
 	}
 
 	public function decr( $key, $value = 1 ) {
-		return apc_dec( $key, $value );
+		return apc_dec( $key . self::KEY_SUFFIX, $value );
 	}
 }

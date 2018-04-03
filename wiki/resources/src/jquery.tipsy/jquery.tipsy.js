@@ -16,6 +16,7 @@
         this.$element = $(element);
         this.options = options;
         this.enabled = true;
+        this.keyHandler = $.proxy( this.closeOnEsc, this );
         this.fixTitle();
     }
 
@@ -30,7 +31,10 @@
                 if (this.options.className) {
                     $tip.addClass(maybeCall(this.options.className, this.$element[0]));
                 }
-                $tip.remove().css({top: 0, left: 0, visibility: 'hidden', display: 'block'}).appendTo(document.body);
+                $tip.remove()
+                    .css({top: 0, left: 0, visibility: 'hidden', display: 'block'})
+                    .attr( 'aria-hidden', 'true' )
+                    .appendTo(document.body);
 
                 var pos = $.extend({}, this.$element.offset(), {
                     width: this.$element[0].offsetWidth,
@@ -82,22 +86,28 @@
                 }
                 $tip.css(tp);
 
+                $( document ).on( 'keydown', this.keyHandler );
                 if (this.options.fade) {
-                    $tip.stop().css({opacity: 0, display: 'block', visibility: 'visible'}).animate({opacity: this.options.opacity}, 100);
+                    $tip.stop()
+                        .css({opacity: 0, display: 'block', visibility: 'visible'})
+                        .attr( 'aria-hidden', 'false' )
+                        .animate({opacity: this.options.opacity}, 100);
                 } else {
-                    $tip.css({visibility: 'visible', opacity: this.options.opacity});
+                    $tip
+                        .css({visibility: 'visible', opacity: this.options.opacity})
+                        .attr( 'aria-hidden', 'false' );
                 }
             }
         },
 
         hide: function() {
+            $( document ).off( 'keydown', this.keyHandler );
             if (this.options.fade) {
                 this.tip().stop().fadeOut(100, function() { $(this).remove(); });
             } else {
                 this.tip().remove();
             }
         },
-
 
         fixTitle: function() {
             var $e = this.$element;
@@ -120,7 +130,7 @@
 
         tip: function() {
             if (!this.$tip) {
-                this.$tip = $('<div class="tipsy"></div>').html('<div class="tipsy-arrow"></div><div class="tipsy-inner"></div>');
+                this.$tip = $('<div class="tipsy" role="tooltip"></div>').html('<div class="tipsy-arrow"></div><div class="tipsy-inner"></div>');
             }
             return this.$tip;
         },
@@ -130,6 +140,13 @@
                 this.hide();
                 this.$element = null;
                 this.options = null;
+            }
+        },
+
+        // $.proxy event handler
+        closeOnEsc: function ( e ) {
+            if ( e.keyCode === 27 ) {
+                this.hide();
             }
         },
 
@@ -180,24 +197,18 @@
             }
         };
 
-        if (!options.live) this.each(function() { get(this); });
+        this.each(function() { get(this); });
 
         if ( options.trigger != 'manual' ) {
-            var eventIn  = options.trigger == 'hover' ? 'mouseenter' : 'focus',
-                eventOut = options.trigger == 'hover' ? 'mouseleave' : 'blur';
+            var eventIn  = options.trigger == 'hover' ? 'mouseenter focus' : 'focus',
+                eventOut = options.trigger == 'hover' ? 'mouseleave blur' : 'blur';
             if ( options.live ) {
                 mw.track( 'mw.deprecate', 'tipsy-live' );
-                mw.log.warn( 'Use of the "live" option of jquery.tipsy is deprecated.' );
-                // XXX: The official status of 'context' is deprecated, and the official status of
-                // 'selector' is removed, so this really needs to go.
-                $( this.context )
-                    .on( eventIn, this.selector, enter )
-                    .on( eventOut, this.selector, leave );
-            } else {
-                this
-                    .on( eventIn, enter )
-                    .on( eventOut, leave );
+                mw.log.warn( 'Use of the "live" option of jquery.tipsy is no longer supported.' );
             }
+            this
+                .on( eventIn, enter )
+                .on( eventOut, leave );
         }
 
         return this;

@@ -40,43 +40,54 @@ final class EnqueueJob extends Job {
 	 * @param Title $title
 	 * @param array $params Job parameters
 	 */
-	function __construct( $title, $params ) {
+	function __construct( Title $title, array $params ) {
 		parent::__construct( 'enqueue', $title, $params );
 	}
 
 	/**
-	 * @param Job|JobSpecification|array $jobs
-	 * @return JobRouteJob
+	 * @param JobSpecification|JobSpecification[] $jobs
+	 * @return EnqueueJob
 	 */
 	public static function newFromLocalJobs( $jobs ) {
-		$jobs = is_array( $jobs ) ? $jobs : array( $jobs );
+		$jobs = is_array( $jobs ) ? $jobs : [ $jobs ];
 
-		return self::newFromJobsByWiki( array( wfWikiID() => $jobs ) );
+		return self::newFromJobsByWiki( [ wfWikiID() => $jobs ] );
 	}
 
 	/**
 	 * @param array $jobsByWiki Map of (wiki => JobSpecification list)
-	 * @return JobRouteJob
+	 * @return EnqueueJob
 	 */
 	public static function newFromJobsByWiki( array $jobsByWiki ) {
-		$jobMapsByWiki = array();
+		$deduplicate = true;
+
+		$jobMapsByWiki = [];
 		foreach ( $jobsByWiki as $wiki => $jobs ) {
-			$jobMapsByWiki[$wiki] = array();
+			$jobMapsByWiki[$wiki] = [];
 			foreach ( $jobs as $job ) {
 				if ( $job instanceof JobSpecification ) {
 					$jobMapsByWiki[$wiki][] = $job->toSerializableArray();
 				} else {
 					throw new InvalidArgumentException( "Jobs must be of type JobSpecification." );
 				}
+				$deduplicate = $deduplicate && $job->ignoreDuplicates();
 			}
 		}
 
-		return new self( Title::newMainPage(), array( 'jobsByWiki' => $jobMapsByWiki ) );
+		$eJob = new self(
+			Title::makeTitle( NS_SPECIAL, 'Badtitle/' . __CLASS__ ),
+			[ 'jobsByWiki' => $jobMapsByWiki ]
+		);
+		// If *all* jobs to be pushed are to be de-duplicated (a common case), then
+		// de-duplicate this whole job itself to avoid build up in high traffic cases
+		$eJob->removeDuplicates = $deduplicate;
+
+		return $eJob;
 	}
 
 	public function run() {
 		foreach ( $this->params['jobsByWiki'] as $wiki => $jobMaps ) {
-			$jobSpecs = array();
+			$jobSpecs = [];
 			foreach ( $jobMaps as $jobMap ) {
 				$jobSpecs[] = JobSpecification::newFromArray( $jobMap );
 			}

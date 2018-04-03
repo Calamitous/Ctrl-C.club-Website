@@ -33,8 +33,7 @@ class ExifBitmapHandler extends BitmapHandler {
 
 	function convertMetadataVersion( $metadata, $version = 1 ) {
 		// basically flattens arrays.
-		$version = explode( ';', $version, 2 );
-		$version = intval( $version[0] );
+		$version = intval( explode( ';', $version, 2 )[0] );
 		if ( $version < 1 || $version >= 2 ) {
 			return $metadata;
 		}
@@ -100,16 +99,16 @@ class ExifBitmapHandler extends BitmapHandler {
 		if ( $metadata === self::BROKEN_FILE ) {
 			return self::METADATA_GOOD;
 		}
-		wfSuppressWarnings();
+		MediaWiki\suppressWarnings();
 		$exif = unserialize( $metadata );
-		wfRestoreWarnings();
+		MediaWiki\restoreWarnings();
 		if ( !isset( $exif['MEDIAWIKI_EXIF_VERSION'] )
 			|| $exif['MEDIAWIKI_EXIF_VERSION'] != Exif::version()
 		) {
 			if ( isset( $exif['MEDIAWIKI_EXIF_VERSION'] )
 				&& $exif['MEDIAWIKI_EXIF_VERSION'] == 1
 			) {
-				//back-compatible but old
+				// back-compatible but old
 				wfDebug( __METHOD__ . ": back-compat version\n" );
 
 				return self::METADATA_COMPATIBLE;
@@ -145,12 +144,12 @@ class ExifBitmapHandler extends BitmapHandler {
 		) {
 			// So we don't try and display metadata from PagedTiffHandler
 			// for example when using InstantCommons.
-			return array();
+			return [];
 		}
 
 		$exif = unserialize( $metadata );
 		if ( !$exif ) {
-			return array();
+			return [];
 		}
 		unset( $exif['MEDIAWIKI_EXIF_VERSION'] );
 
@@ -165,7 +164,7 @@ class ExifBitmapHandler extends BitmapHandler {
 	 * Wrapper for base classes ImageHandler::getImageSize() that checks for
 	 * rotation reported from metadata and swaps the sizes to match.
 	 *
-	 * @param File $image
+	 * @param File|FSFile $image
 	 * @param string $path
 	 * @return array
 	 */
@@ -224,9 +223,9 @@ class ExifBitmapHandler extends BitmapHandler {
 		if ( !$data ) {
 			return 0;
 		}
-		wfSuppressWarnings();
+		MediaWiki\suppressWarnings();
 		$data = unserialize( $data );
-		wfRestoreWarnings();
+		MediaWiki\restoreWarnings();
 		if ( isset( $data['Orientation'] ) ) {
 			# See http://sylvana.net/jpegcrop/exif_orientation.html
 			switch ( $data['Orientation'] ) {

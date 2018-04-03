@@ -28,19 +28,8 @@
  * @ingroup Cache
  */
 class WinCacheBagOStuff extends BagOStuff {
-
-	/**
-	 * Get a value from the WinCache object cache
-	 *
-	 * @param string $key Cache key
-	 * @param int $casToken [optional] Cas token
-	 * @return mixed
-	 */
-	public function get( $key, &$casToken = null ) {
+	protected function doGet( $key, $flags = 0 ) {
 		$val = wincache_ucache_get( $key );
-
-		$casToken = $val;
-
 		if ( is_string( $val ) ) {
 			$val = unserialize( $val );
 		}
@@ -48,52 +37,28 @@ class WinCacheBagOStuff extends BagOStuff {
 		return $val;
 	}
 
-	/**
-	 * Store a value in the WinCache object cache
-	 *
-	 * @param string $key Cache key
-	 * @param mixed $value Value to store
-	 * @param int $expire Expiration time
-	 * @return bool
-	 */
-	public function set( $key, $value, $expire = 0 ) {
+	public function set( $key, $value, $expire = 0, $flags = 0 ) {
 		$result = wincache_ucache_set( $key, serialize( $value ), $expire );
 
 		/* wincache_ucache_set returns an empty array on success if $value
-		   was an array, bool otherwise */
-		return ( is_array( $result ) && $result === array() ) || $result;
+		 * was an array, bool otherwise */
+		return ( is_array( $result ) && $result === [] ) || $result;
 	}
 
-	/**
-	 * Store a value in the WinCache object cache, race condition-safe
-	 *
-	 * @param int $casToken Cas token
-	 * @param string $key Cache key
-	 * @param int $value Object to store
-	 * @param int $exptime Expiration time
-	 * @return bool
-	 */
-	protected function cas( $casToken, $key, $value, $exptime = 0 ) {
-		return wincache_ucache_cas( $key, $casToken, serialize( $value ) );
-	}
-
-	/**
-	 * Remove a value from the WinCache object cache
-	 *
-	 * @param string $key Cache key
-	 * @return bool
-	 */
 	public function delete( $key ) {
 		wincache_ucache_delete( $key );
 
 		return true;
 	}
 
-	public function merge( $key, $callback, $exptime = 0, $attempts = 10 ) {
-		if ( !is_callable( $callback ) ) {
-			throw new Exception( "Got invalid callback." );
+	public function merge( $key, callable $callback, $exptime = 0, $attempts = 10, $flags = 0 ) {
+		if ( wincache_lock( $key ) ) { // optimize with FIFO lock
+			$ok = $this->mergeViaLock( $key, $callback, $exptime, $attempts, $flags );
+			wincache_unlock( $key );
+		} else {
+			$ok = false;
 		}
 
-		return $this->mergeViaCas( $key, $callback, $exptime, $attempts );
+		return $ok;
 	}
 }

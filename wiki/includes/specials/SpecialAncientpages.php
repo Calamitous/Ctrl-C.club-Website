@@ -32,7 +32,7 @@ class AncientPagesPage extends QueryPage {
 		parent::__construct( $name );
 	}
 
-	function isExpensive() {
+	public function isExpensive() {
 		return true;
 	}
 
@@ -40,28 +40,32 @@ class AncientPagesPage extends QueryPage {
 		return false;
 	}
 
-	function getQueryInfo() {
-		return array(
-			'tables' => array( 'page', 'revision' ),
-			'fields' => array(
+	public function getQueryInfo() {
+		return [
+			'tables' => [ 'page', 'revision' ],
+			'fields' => [
 				'namespace' => 'page_namespace',
 				'title' => 'page_title',
 				'value' => 'rev_timestamp'
-			),
-			'conds' => array(
+			],
+			'conds' => [
 				'page_namespace' => MWNamespace::getContentNamespaces(),
 				'page_is_redirect' => 0,
 				'page_latest=rev_id'
-			)
-		);
+			]
+		];
 	}
 
-	function usesTimestamps() {
+	public function usesTimestamps() {
 		return true;
 	}
 
 	function sortDescending() {
 		return false;
+	}
+
+	public function preprocessResults( $db, $res ) {
+		$this->executeLBFromResultWrapper( $res );
 	}
 
 	/**
@@ -74,9 +78,10 @@ class AncientPagesPage extends QueryPage {
 
 		$d = $this->getLanguage()->userTimeAndDate( $result->value, $this->getUser() );
 		$title = Title::makeTitle( $result->namespace, $result->title );
-		$link = Linker::linkKnown(
+		$linkRenderer = $this->getLinkRenderer();
+		$link = $linkRenderer->makeKnownLink(
 			$title,
-			htmlspecialchars( $wgContLang->convert( $title->getPrefixedText() ) )
+			$wgContLang->convert( $title->getPrefixedText() )
 		);
 
 		return $this->getLanguage()->specialList( $link, htmlspecialchars( $d ) );

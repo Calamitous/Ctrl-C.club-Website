@@ -1,6 +1,6 @@
 <?php
 /**
- * Resource loader request result caching in the file system.
+ * ResourceLoader request result caching in the file system.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
  */
 
 /**
- * Resource loader request result caching in the file system.
+ * ResourceLoader request result caching in the file system.
  *
  * @ingroup Cache
  */
@@ -71,14 +71,14 @@ class ResourceFileCache extends FileCacheBase {
 		// Get all query values
 		$queryVals = $context->getRequest()->getValues();
 		foreach ( $queryVals as $query => $val ) {
-			if ( in_array( $query, array( 'modules', 'image', 'variant', 'version', '*' ) ) ) {
+			if ( in_array( $query, [ 'modules', 'image', 'variant', 'version', '*' ] ) ) {
 				// Use file cache regardless of the value of this parameter
 				continue; // note: &* added as IE fix
 			} elseif ( $query === 'skin' && $val === $wgDefaultSkin ) {
 				continue;
 			} elseif ( $query === 'lang' && $val === $wgLanguageCode ) {
 				continue;
-			} elseif ( $query === 'only' && in_array( $val, array( 'styles', 'scripts' ) ) ) {
+			} elseif ( $query === 'only' && in_array( $val, [ 'styles', 'scripts' ] ) ) {
 				continue;
 			} elseif ( $query === 'debug' && $val === 'false' ) {
 				continue;

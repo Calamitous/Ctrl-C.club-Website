@@ -5,7 +5,7 @@
  * @todo all test methods in this class should be refactored and...
  *    use a single test method and a single data provider...
  */
-class SanitizerValidateEmailTest extends MediaWikiTestCase {
+class SanitizerValidateEmailTest extends PHPUnit_Framework_TestCase {
 
 	private function checkEmail( $addr, $expected = true, $msg = '' ) {
 		if ( $msg == '' ) {
@@ -64,7 +64,7 @@ class SanitizerValidateEmailTest extends MediaWikiTestCase {
 	}
 
 	/**
-	 * bug 26948 : comma were matched by an incorrect regexp range
+	 * T28948 : comma were matched by an incorrect regexp range
 	 */
 	public function testEmailWithCommasAreInvalids() {
 		$this->invalid( "user,foo@example.org" );

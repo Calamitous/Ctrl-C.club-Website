@@ -1,7 +1,7 @@
 ( function ( mw ) {
 	QUnit.module( 'mediawiki.track' );
 
-	QUnit.test( 'track', 1, function ( assert ) {
+	QUnit.test( 'track', function ( assert ) {
 		var sequence = [];
 		mw.trackSubscribe( 'simple', function ( topic, data ) {
 			sequence.push( [ topic, data ] );
@@ -15,7 +15,7 @@
 		], 'Events after subscribing' );
 	} );
 
-	QUnit.test( 'trackSubscribe', 4, function ( assert ) {
+	QUnit.test( 'trackSubscribe', function ( assert ) {
 		var now,
 			sequence = [];
 		mw.track( 'before', { key: 1 } );
@@ -38,5 +38,23 @@
 			assert.strictEqual( this.data, data, 'thisValue has data' );
 			assert.assertTrue( this.timeStamp >= now, 'thisValue has sane timestamp' );
 		} );
+	} );
+
+	QUnit.test( 'trackUnsubscribe', function ( assert ) {
+		var sequence = [];
+		function unsubber( topic, data ) {
+			sequence.push( [ topic, data ] );
+		}
+
+		mw.track( 'unsub', { key: 1 } );
+		mw.trackSubscribe( 'unsub', unsubber );
+		mw.track( 'unsub', { key: 2 } );
+		mw.trackUnsubscribe( unsubber );
+		mw.track( 'unsub', { key: 3 } );
+
+		assert.deepEqual( sequence, [
+			[ 'unsub', { key: 1 } ],
+			[ 'unsub', { key: 2 } ]
+		], 'Stop when unsubscribing' );
 	} );
 }( mediaWiki ) );

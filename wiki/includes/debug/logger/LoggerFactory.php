@@ -40,28 +40,25 @@ use ObjectFactory;
  *
  * @see \MediaWiki\Logger\Spi
  * @since 1.25
- * @author Bryan Davis <bd808@wikimedia.org>
- * @copyright © 2014 Bryan Davis and Wikimedia Foundation.
+ * @copyright © 2014 Wikimedia Foundation and contributors
  */
 class LoggerFactory {
 
 	/**
 	 * Service provider.
-	 * @var Spi $spi
+	 * @var \MediaWiki\Logger\Spi $spi
 	 */
 	private static $spi;
-
 
 	/**
 	 * Register a service provider to create new \Psr\Log\LoggerInterface
 	 * instances.
 	 *
-	 * @param Spi $provider Provider to register
+	 * @param \MediaWiki\Logger\Spi $provider Provider to register
 	 */
 	public static function registerProvider( Spi $provider ) {
 		self::$spi = $provider;
 	}
-
 
 	/**
 	 * Get the registered service provider.
@@ -71,7 +68,7 @@ class LoggerFactory {
 	 * Spi registration. $wgMWLoggerDefaultSpi is expected to be an
 	 * array usable by ObjectFactory::getObjectFromSpec() to create a class.
 	 *
-	 * @return Spi
+	 * @return \MediaWiki\Logger\Spi
 	 * @see registerProvider()
 	 * @see ObjectFactory::getObjectFromSpec()
 	 */
@@ -86,7 +83,6 @@ class LoggerFactory {
 		return self::$spi;
 	}
 
-
 	/**
 	 * Get a named logger instance from the currently configured logger factory.
 	 *
@@ -94,23 +90,8 @@ class LoggerFactory {
 	 * @return \Psr\Log\LoggerInterface
 	 */
 	public static function getInstance( $channel ) {
-		if ( !interface_exists( '\Psr\Log\LoggerInterface' ) ) {
-			$message = (
-				'MediaWiki requires the <a href="https://github.com/php-fig/log">PSR-3 logging ' .
-				"library</a> to be present. This library is not embedded directly in MediaWiki's " .
-				"git repository and must be installed separately by the end user.\n\n" .
-				'Please see <a href="https://www.mediawiki.org/wiki/Download_from_Git' .
-				'#Fetch_external_libraries">mediawiki.org</a> for help on installing ' .
-				'the required components.'
-			);
-			echo $message;
-			trigger_error( $message, E_USER_ERROR );
-			die( 1 );
-		}
-
 		return self::getProvider()->getLogger( $channel );
 	}
-
 
 	/**
 	 * Construction of utility class is not allowed.

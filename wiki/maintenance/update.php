@@ -4,7 +4,6 @@
  * Run all updaters.
  *
  * This is used when the database schema is modified and we need to apply patches.
- * It is kept compatible with php 4 parsing so that it can give out a meaningful error.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,8 +25,9 @@
  * @ingroup Maintenance
  */
 
-$wgUseMasterForMaintenance = true;
 require_once __DIR__ . '/Maintenance.php';
+
+use Wikimedia\Rdbms\IMaintainableDatabase;
 
 /**
  * Maintenance script to run database schema updates.
@@ -37,7 +37,7 @@ require_once __DIR__ . '/Maintenance.php';
 class UpdateMediaWiki extends Maintenance {
 	function __construct() {
 		parent::__construct();
-		$this->mDescription = "MediaWiki database updater";
+		$this->addDescription( 'MediaWiki database updater' );
 		$this->addOption( 'skip-compat-checks', 'Skips compatibility checks, mostly for developers' );
 		$this->addOption( 'quick', 'Skip 5 second countdown before starting' );
 		$this->addOption( 'doshared', 'Also update shared tables' );
@@ -58,13 +58,11 @@ class UpdateMediaWiki extends Maintenance {
 	}
 
 	function getDbType() {
-		/* If we used the class constant PHP4 would give a parser error here */
-		return 2; /* Maintenance::DB_ADMIN */
+		return Maintenance::DB_ADMIN;
 	}
 
 	function compatChecks() {
-		// Avoid syntax error in PHP4
-		$minimumPcreVersion = constant( 'Installer::MINIMUM_PCRE_VERSION' );
+		$minimumPcreVersion = Installer::MINIMUM_PCRE_VERSION;
 
 		list( $pcreVersion ) = explode( ' ', PCRE_VERSION, 2 );
 		if ( version_compare( $pcreVersion, $minimumPcreVersion, '<' ) ) {
@@ -115,19 +113,22 @@ class UpdateMediaWiki extends Maintenance {
 			}
 		}
 
-		$wgLang = Language::factory( 'en' );
+		$lang = Language::factory( 'en' );
+		// Set global language to ensure localised errors are in English (T22633)
+		RequestContext::getMain()->setLanguage( $lang );
+		$wgLang = $lang; // BackCompat
 
 		define( 'MW_UPDATER', true );
 
 		$this->output( "MediaWiki {$wgVersion} Updater\n\n" );
 
-		wfWaitForSlaves( 5 ); // let's not kill databases, shall we? ;) --tor
+		wfWaitForSlaves();
 
 		if ( !$this->hasOption( 'skip-compat-checks' ) ) {
 			$this->compatChecks();
 		} else {
 			$this->output( "Skipping compatibility checks, proceed at your own risk (Ctrl+C to abort)\n" );
-			wfCountdown( 5 );
+			wfCountDown( 5 );
 		}
 
 		// Check external dependencies are up to date
@@ -142,10 +143,21 @@ class UpdateMediaWiki extends Maintenance {
 
 		# Attempt to connect to the database as a privileged user
 		# This will vomit up an error if there are permissions problems
-		$db = wfGetDB( DB_MASTER );
+		$db = $this->getDB( DB_MASTER );
+
+		# Check to see whether the database server meets the minimum requirements
+		/** @var DatabaseInstaller $dbInstallerClass */
+		$dbInstallerClass = Installer::getDBInstallerClass( $db->getType() );
+		$status = $dbInstallerClass::meetsMinimumRequirement( $db->getServerVersion() );
+		if ( !$status->isOK() ) {
+			// This might output some wikitext like <strong> but it should be comprehensible
+			$text = $status->getWikiText();
+			$this->error( $text, 1 );
+		}
 
 		$this->output( "Going to run database updates for " . wfWikiID() . "\n" );
 		if ( $db->getType() === 'sqlite' ) {
+			/** @var IMaintainableDatabase|DatabaseSqlite $db */
 			$this->output( "Using SQLite file: '{$db->getDbFilePath()}'\n" );
 		}
 		$this->output( "Depending on the size of your database this may take a while!\n" );
@@ -156,11 +168,31 @@ class UpdateMediaWiki extends Maintenance {
 			wfCountDown( 5 );
 		}
 
-		$time1 = new MWTimestamp();
+		$time1 = microtime( true );
+
+		$badPhpUnit = dirname( __DIR__ ) . '/vendor/phpunit/phpunit/src/Util/PHP/eval-stdin.php';
+		if ( file_exists( $badPhpUnit ) ) {
+			// @codingStandardsIgnoreStart Generic.Files.LineLength.TooLong
+			// Bad versions of the file are:
+			// https://raw.githubusercontent.com/sebastianbergmann/phpunit/c820f915bfae34e5a836f94967a2a5ea5ef34f21/src/Util/PHP/eval-stdin.php
+			// https://raw.githubusercontent.com/sebastianbergmann/phpunit/3aaddb1c5bd9b9b8d070b4cf120e71c36fd08412/src/Util/PHP/eval-stdin.php
+			// @codingStandardsIgnoreEnd
+			$md5 = md5_file( $badPhpUnit );
+			if ( $md5 === '120ac49800671dc383b6f3709c25c099'
+				|| $md5 === '28af792cb38fc9a1b236b91c1aad2876'
+			) {
+				$success = unlink( $badPhpUnit );
+				if ( $success ) {
+					$this->output( "Removed PHPUnit eval-stdin.php to protect against CVE-2017-9841\n" );
+				} else {
+					$this->error( "Unable to remove $badPhpUnit, you should manually. See CVE-2017-9841" );
+				}
+			}
+		}
 
 		$shared = $this->hasOption( 'doshared' );
 
-		$updates = array( 'core', 'extensions' );
+		$updates = [ 'core', 'extensions' ];
 		if ( !$this->hasOption( 'schema' ) ) {
 			if ( $this->hasOption( 'noschema' ) ) {
 				$updates[] = 'noschema';
@@ -168,14 +200,14 @@ class UpdateMediaWiki extends Maintenance {
 			$updates[] = 'stats';
 		}
 
-		$updater = DatabaseUpdater::newForDb( $db, $shared, $this );
+		$updater = DatabaseUpdater::newForDB( $db, $shared, $this );
 		$updater->doUpdates( $updates );
 
 		foreach ( $updater->getPostDatabaseUpdateMaintenance() as $maint ) {
 			$child = $this->runChild( $maint );
 
 			// LoggedUpdateMaintenance is checking the updatelog itself
-			$isLoggedUpdate = is_a( $child, 'LoggedUpdateMaintenance' );
+			$isLoggedUpdate = $child instanceof LoggedUpdateMaintenance;
 
 			if ( !$isLoggedUpdate && $updater->updateRowExists( $maint ) ) {
 				continue;
@@ -192,9 +224,10 @@ class UpdateMediaWiki extends Maintenance {
 			$updater->purgeCache();
 		}
 
-		$time2 = new MWTimestamp();
-		$timeDiff = $time2->diff( $time1 );
-		$this->output( "\nDone in " . $timeDiff->format( "%i:%S" ) . ".\n" );
+		$time2 = microtime( true );
+
+		$timeDiff = $lang->formatTimePeriod( $time2 - $time1 );
+		$this->output( "\nDone in $timeDiff.\n" );
 	}
 
 	function afterFinalSetup() {
@@ -202,13 +235,13 @@ class UpdateMediaWiki extends Maintenance {
 
 		# Don't try to access the database
 		# This needs to be disabled early since extensions will try to use the l10n
-		# cache from $wgExtensionFunctions (bug 20471)
-		$wgLocalisationCacheConf = array(
+		# cache from $wgExtensionFunctions (T22471)
+		$wgLocalisationCacheConf = [
 			'class' => 'LocalisationCache',
 			'storeClass' => 'LCStoreNull',
 			'storeDirectory' => false,
 			'manualRecache' => false,
-		);
+		];
 	}
 }
 

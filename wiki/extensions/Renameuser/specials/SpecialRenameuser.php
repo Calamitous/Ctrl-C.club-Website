@@ -9,12 +9,17 @@ class SpecialRenameuser extends SpecialPage {
 		parent::__construct( 'Renameuser', 'renameuser' );
 	}
 
+	public function doesWrites() {
+		return true;
+	}
+
 	/**
 	 * Show the special page
 	 *
 	 * @param mixed $par Parameter passed to the page
-	 * @throws UserBlockedError|PermissionsError
-	 * @return void
+	 * @throws PermissionsError
+	 * @throws ReadOnlyError
+	 * @throws UserBlockedError
 	 */
 	public function execute( $par ) {
 		global $wgContLang, $wgCapitalLinks;
@@ -30,62 +35,76 @@ class SpecialRenameuser extends SpecialPage {
 		}
 
 		if ( wfReadOnly() ) {
-			$out->readOnlyPage();
-			return;
+			throw new ReadOnlyError;
 		}
 
-		if( $user->isBlocked() ){
+		if ( $user->isBlocked() ) {
 			throw new UserBlockedError( $this->getUser()->mBlock );
 		}
 
+		$this->useTransactionalTimeLimit();
+
 		$request = $this->getRequest();
 		$showBlockLog = $request->getBool( 'submit-showBlockLog' );
-		$oldnamePar = trim( str_replace( '_', ' ', $request->getText( 'oldusername', $par ) ) );
+		$usernames = explode( '/', $par, 2 ); // this works as "/" is not valid in usernames
+		$oldnamePar = trim( str_replace( '_', ' ', $request->getText( 'oldusername', $usernames[0] ) ) );
 		$oldusername = Title::makeTitle( NS_USER, $oldnamePar );
-		// Force uppercase of newusername, otherwise wikis with wgCapitalLinks=false can create lc usernames
-		$newusername = Title::makeTitleSafe( NS_USER, $wgContLang->ucfirst( $request->getText( 'newusername' ) ) );
+		$newnamePar = isset( $usernames[1] ) ? $usernames[1] : null;
+		$newnamePar = trim( str_replace( '_', ' ', $request->getText( 'newusername', $newnamePar ) ) );
+		// Force uppercase of newusername, otherwise wikis
+		// with wgCapitalLinks=false can create lc usernames
+		$newusername = Title::makeTitleSafe( NS_USER, $wgContLang->ucfirst( $newnamePar ) );
 		$oun = is_object( $oldusername ) ? $oldusername->getText() : '';
 		$nun = is_object( $newusername ) ? $newusername->getText() : '';
 		$token = $user->getEditToken();
 		$reason = $request->getText( 'reason' );
 
-		$move_checked = $request->getBool( 'movepages', !$request->wasPosted());
+		$move_checked = $request->getBool( 'movepages', !$request->wasPosted() );
 		$suppress_checked = $request->getCheck( 'suppressredirect' );
 
-		$warnings = array();
-		if ( $oun && $nun && !$request->getCheck( 'confirmaction' )  ) {
-			Hooks::run( 'RenameUserWarning', array( $oun, $nun, &$warnings ) );
+		$warnings = [];
+		if ( $oun && $nun && !$request->getCheck( 'confirmaction' ) ) {
+			Hooks::run( 'RenameUserWarning', [ $oun, $nun, &$warnings ] );
 		}
 
 		$out->addHTML(
-			Xml::openElement( 'form', array( 'method' => 'post', 'action' => $this->getPageTitle()->getLocalUrl(), 'id' => 'renameuser' ) ) .
+			Xml::openElement( 'form', [
+				'method' => 'post',
+				'action' => $this->getPageTitle()->getLocalURL(),
+				'id' => 'renameuser'
+			] ) .
 			Xml::openElement( 'fieldset' ) .
 			Xml::element( 'legend', null, $this->msg( 'renameuser' )->text() ) .
-			Xml::openElement( 'table', array( 'id' => 'mw-renameuser-table' ) ) .
+			Xml::openElement( 'table', [ 'id' => 'mw-renameuser-table' ] ) .
 			"<tr>
 				<td class='mw-label'>" .
-					Xml::label( $this->msg( 'renameuserold' )->text(), 'oldusername' ) .
-				"</td>
+			Xml::label( $this->msg( 'renameuserold' )->text(), 'oldusername' ) .
+			"</td>
 				<td class='mw-input'>" .
-					Xml::input( 'oldusername', 20, $oun, array( 'type' => 'text', 'tabindex' => '1' ) ) . ' ' .
-				"</td>
+			Xml::input( 'oldusername', 20, $oun, [ 'type' => 'text', 'tabindex' => '1' ] ) . ' ' .
+			"</td>
 			</tr>
 			<tr>
 				<td class='mw-label'>" .
-					Xml::label( $this->msg( 'renameusernew' )->text(), 'newusername' ) .
-				"</td>
+			Xml::label( $this->msg( 'renameusernew' )->text(), 'newusername' ) .
+			"</td>
 				<td class='mw-input'>" .
-					Xml::input( 'newusername', 20, $nun, array( 'type' => 'text', 'tabindex' => '2' ) ) .
-				"</td>
+			Xml::input( 'newusername', 20, $nun, [ 'type' => 'text', 'tabindex' => '2' ] ) .
+			"</td>
 			</tr>
 			<tr>
 				<td class='mw-label'>" .
-					Xml::label( $this->msg( 'renameuserreason' )->text(), 'reason' ) .
-				"</td>
+			Xml::label( $this->msg( 'renameuserreason' )->text(), 'reason' ) .
+			"</td>
 				<td class='mw-input'>" .
-					Xml::input( 'reason', 40, $reason, array( 'type' => 'text', 'tabindex' => '3', 'maxlength' => 255 ) ) .
-				"</td>
-			</tr>"
+			Xml::input(
+				'reason',
+				40,
+				$reason,
+				[ 'type' => 'text', 'tabindex' => '3', 'maxlength' => 255 ]
+			) .
+			'</td>
+			</tr>'
 		);
 		if ( $user->isAllowed( 'move' ) ) {
 			$out->addHTML( "
@@ -93,10 +112,10 @@ class SpecialRenameuser extends SpecialPage {
 					<td>&#160;
 					</td>
 					<td class='mw-input'>" .
-						Xml::checkLabel( $this->msg( 'renameusermove' )->text(), 'movepages', 'movepages',
-							$move_checked, array( 'tabindex' => '4' ) ) .
-					"</td>
-				</tr>"
+				Xml::checkLabel( $this->msg( 'renameusermove' )->text(), 'movepages', 'movepages',
+					$move_checked, [ 'tabindex' => '4' ] ) .
+				'</td>
+				</tr>'
 			);
 
 			if ( $user->isAllowed( 'suppressredirect' ) ) {
@@ -105,20 +124,20 @@ class SpecialRenameuser extends SpecialPage {
 						<td>&#160;
 						</td>
 						<td class='mw-input'>" .
-							Xml::checkLabel(
-								$this->msg( 'renameusersuppress' )->text(),
-								'suppressredirect',
-								'suppressredirect',
-								$suppress_checked,
-								array( 'tabindex' => '5' )
-							) .
-						"</td>
-					</tr>"
+					Xml::checkLabel(
+						$this->msg( 'renameusersuppress' )->text(),
+						'suppressredirect',
+						'suppressredirect',
+						$suppress_checked,
+						[ 'tabindex' => '5' ]
+					) .
+					'</td>
+					</tr>'
 				);
 			}
 		}
 		if ( $warnings ) {
-			$warningsHtml = array();
+			$warningsHtml = [];
 			foreach ( $warnings as $warning ) {
 				$warningsHtml[] = is_array( $warning ) ?
 					$this->msg( $warning[0] )->rawParams( array_slice( $warning, 1 ) )->escaped() :
@@ -130,25 +149,25 @@ class SpecialRenameuser extends SpecialPage {
 					<td class='mw-label'>" . $this->msg( 'renameuserwarnings' )->escaped() . "
 					</td>
 					<td class='mw-input'>" .
-						'<ul style="color: red; font-weight: bold"><li>' .
-							implode( '</li><li>', $warningsHtml ) . '</li></ul>' .
-					"</td>
-				</tr>"
+				'<ul class="error"><li>' .
+				implode( '</li><li>', $warningsHtml ) . '</li></ul>' .
+				'</td>
+				</tr>'
 			);
 			$out->addHTML( "
 				<tr>
 					<td>&#160;
 					</td>
 					<td class='mw-input'>" .
-						Xml::checkLabel(
-							$this->msg( 'renameuserconfirm' )->text(),
-							'confirmaction',
-							'confirmaction',
-							false,
-							array( 'tabindex' => '6' )
-						) .
-					"</td>
-				</tr>"
+				Xml::checkLabel(
+					$this->msg( 'renameuserconfirm' )->text(),
+					'confirmaction',
+					'confirmaction',
+					false,
+					[ 'tabindex' => '6' ]
+				) .
+				'</td>
+				</tr>'
 			);
 		}
 		$out->addHTML( "
@@ -156,25 +175,25 @@ class SpecialRenameuser extends SpecialPage {
 				<td>&#160;
 				</td>
 				<td class='mw-submit'>" .
-					Xml::submitButton(
-						$this->msg( 'renameusersubmit' )->text(),
-						array(
-							'name' => 'submit',
-							'tabindex' => '7',
-							'id' => 'submit'
-						)
-					) .
-					' ' .
-					Xml::submitButton(
-						$this->msg( 'renameuser-submit-blocklog' )->text(),
-						array (
-							'name' => 'submit-showBlockLog',
-							'id' => 'submit-showBlockLog',
-							'tabindex' => '8'
-						)
-					) .
-				"</td>
-			</tr>" .
+			Xml::submitButton(
+				$this->msg( 'renameusersubmit' )->text(),
+				[
+					'name' => 'submit',
+					'tabindex' => '7',
+					'id' => 'submit'
+				]
+			) .
+			' ' .
+			Xml::submitButton(
+				$this->msg( 'renameuser-submit-blocklog' )->text(),
+				[
+					'name' => 'submit-showBlockLog',
+					'id' => 'submit-showBlockLog',
+					'tabindex' => '8'
+				]
+			) .
+			'</td>
+			</tr>' .
 			Xml::closeElement( 'table' ) .
 			Xml::closeElement( 'fieldset' ) .
 			Html::hidden( 'token', $token ) .
@@ -183,7 +202,8 @@ class SpecialRenameuser extends SpecialPage {
 
 		// Show block log if requested
 		if ( $showBlockLog && is_object( $oldusername ) ) {
-			$this->showLogExtract( $oldusername, 'block', $out ) ;
+			$this->showLogExtract( $oldusername, 'block', $out );
+
 			return;
 		}
 
@@ -195,17 +215,21 @@ class SpecialRenameuser extends SpecialPage {
 			return;
 		} elseif ( !$request->wasPosted() || !$user->matchEditToken( $request->getVal( 'token' ) ) ) {
 			$out->wrapWikiMsg( "<div class=\"errorbox\">$1</div>", 'renameuser-error-request' );
+
 			return;
 		} elseif ( !is_object( $oldusername ) ) {
 			$out->wrapWikiMsg( "<div class=\"errorbox\">$1</div>",
-				array( 'renameusererrorinvalid', $request->getText( 'oldusername' ) ) );
+				[ 'renameusererrorinvalid', $request->getText( 'oldusername' ) ] );
+
 			return;
 		} elseif ( !is_object( $newusername ) ) {
 			$out->wrapWikiMsg( "<div class=\"errorbox\">$1</div>",
-				array( 'renameusererrorinvalid', $request->getText( 'newusername' ) ) );
+				[ 'renameusererrorinvalid', $request->getText( 'newusername' ) ] );
+
 			return;
-		} elseif ( $oldusername->getText() == $newusername->getText() ) {
+		} elseif ( $oldusername->getText() === $newusername->getText() ) {
 			$out->wrapWikiMsg( "<div class=\"errorbox\">$1</div>", 'renameuser-error-same-user' );
+
 			return;
 		}
 
@@ -216,12 +240,14 @@ class SpecialRenameuser extends SpecialPage {
 		// It won't be an object if for instance "|" is supplied as a value
 		if ( !is_object( $olduser ) ) {
 			$out->wrapWikiMsg( "<div class=\"errorbox\">$1</div>",
-				array( 'renameusererrorinvalid', $oldusername->getText() ) );
+				[ 'renameusererrorinvalid', $oldusername->getText() ] );
+
 			return;
 		}
 		if ( !is_object( $newuser ) || !User::isCreatableName( $newuser->getName() ) ) {
 			$out->wrapWikiMsg( "<div class=\"errorbox\">$1</div>",
-				array( 'renameusererrorinvalid', $newusername->getText() ) );
+				[ 'renameusererrorinvalid', $newusername->getText() ] );
+
 			return;
 		}
 
@@ -231,7 +257,7 @@ class SpecialRenameuser extends SpecialPage {
 			// oldusername was entered as lowercase -> check for existence in table 'user'
 			$dbr = wfGetDB( DB_SLAVE );
 			$uid = $dbr->selectField( 'user', 'user_id',
-				array( 'user_name' => $oldusername->getText() ),
+				[ 'user_name' => $oldusername->getText() ],
 				__METHOD__ );
 			if ( $uid === false ) {
 				if ( !$wgCapitalLinks ) {
@@ -247,20 +273,25 @@ class SpecialRenameuser extends SpecialPage {
 			$uid = $olduser->idForName();
 		}
 
-		if ( $uid == 0 ) {
+		if ( $uid === 0 ) {
 			$out->wrapWikiMsg( "<div class=\"errorbox\">$1</div>",
-				array( 'renameusererrordoesnotexist', $oldusername->getText() ) );
+				[ 'renameusererrordoesnotexist', $oldusername->getText() ] );
+
 			return;
 		}
 
-		if ( $newuser->idForName() != 0 ) {
+		if ( $newuser->idForName() !== 0 ) {
 			$out->wrapWikiMsg( "<div class=\"errorbox\">$1</div>",
-				array( 'renameusererrorexists', $newusername->getText() ) );
+				[ 'renameusererrorexists', $newusername->getText() ] );
+
 			return;
 		}
 
 		// Give other affected extensions a chance to validate or abort
-		if ( !Hooks::run( 'RenameUserAbort', array( $uid, $oldusername->getText(), $newusername->getText() ) ) ) {
+		if ( !Hooks::run(
+			'RenameUserAbort',
+			[ $uid, $oldusername->getText(), $newusername->getText() ]
+		) ) {
 			return;
 		}
 
@@ -270,7 +301,7 @@ class SpecialRenameuser extends SpecialPage {
 			$newusername->getText(),
 			$uid,
 			$this->getUser(),
-			array( 'reason' => $reason )
+			[ 'reason' => $reason ]
 		);
 		if ( !$rename->rename() ) {
 			return;
@@ -278,7 +309,7 @@ class SpecialRenameuser extends SpecialPage {
 
 		// If this user is renaming his/herself, make sure that Title::moveTo()
 		// doesn't make a bunch of null move edits under the old name!
-		if ( $user->getId() == $uid ) {
+		if ( $user->getId() === $uid ) {
 			$user->setName( $newusername->getText() );
 		}
 
@@ -288,12 +319,12 @@ class SpecialRenameuser extends SpecialPage {
 
 			$pages = $dbr->select(
 				'page',
-				array( 'page_namespace', 'page_title' ),
-				array(
+				[ 'page_namespace', 'page_title' ],
+				[
 					'page_namespace IN (' . NS_USER . ',' . NS_USER_TALK . ')',
 					'(page_title ' . $dbr->buildLike( $oldusername->getDBkey() . '/', $dbr->anyString() ) .
-						' OR page_title = ' . $dbr->addQuotes( $oldusername->getDBkey() ) . ')'
-				),
+					' OR page_title = ' . $dbr->addQuotes( $oldusername->getDBkey() ) . ')'
+				],
 				__METHOD__
 			);
 
@@ -312,50 +343,50 @@ class SpecialRenameuser extends SpecialPage {
 				if ( $newPage->exists() && !$oldPage->isValidMoveTarget( $newPage ) ) {
 					$link = Linker::linkKnown( $newPage );
 					$output .= Html::rawElement(
-								'li',
-								array( 'class' => 'mw-renameuser-pe' ),
-								wfMessage( 'renameuser-page-exists' )->rawParams( $link )->escaped()
-							);
+						'li',
+						[ 'class' => 'mw-renameuser-pe' ],
+						$this->msg( 'renameuser-page-exists' )->rawParams( $link )->escaped()
+					);
 				} else {
 					$success = $oldPage->moveTo(
-								$newPage,
-								false,
-								wfMessage(
-									'renameuser-move-log',
-									$oldusername->getText(),
-									$newusername->getText() )->inContentLanguage()->text(),
-								!$suppressRedirect
-							);
+						$newPage,
+						false,
+						$this->msg(
+							'renameuser-move-log',
+							$oldusername->getText(),
+							$newusername->getText() )->inContentLanguage()->text(),
+						!$suppressRedirect
+					);
 					if ( $success === true ) {
 						# oldPage is not known in case of redirect suppression
-						$oldLink = Linker::link( $oldPage, null, array(), array( 'redirect' => 'no' ) );
+						$oldLink = Linker::link( $oldPage, null, [], [ 'redirect' => 'no' ] );
 
 						# newPage is always known because the move was successful
 						$newLink = Linker::linkKnown( $newPage );
 
 						$output .= Html::rawElement(
-									'li',
-									array( 'class' => 'mw-renameuser-pm' ),
-									wfMessage( 'renameuser-page-moved' )->rawParams( $oldLink, $newLink )->escaped()
-								);
+							'li',
+							[ 'class' => 'mw-renameuser-pm' ],
+							$this->msg( 'renameuser-page-moved' )->rawParams( $oldLink, $newLink )->escaped()
+						);
 					} else {
 						$oldLink = Linker::linkKnown( $oldPage );
 						$newLink = Linker::link( $newPage );
 						$output .= Html::rawElement(
-									'li', array( 'class' => 'mw-renameuser-pu' ),
-									wfMessage( 'renameuser-page-unmoved' )->rawParams( $oldLink, $newLink )->escaped()
-								);
+							'li', [ 'class' => 'mw-renameuser-pu' ],
+							$this->msg( 'renameuser-page-unmoved' )->rawParams( $oldLink, $newLink )->escaped()
+						);
 					}
 				}
 			}
 			if ( $output ) {
-				$out->addHTML( Html::rawElement( 'ul', array(), $output ) );
+				$out->addHTML( Html::rawElement( 'ul', [], $output ) );
 			}
 		}
 
 		// Output success message stuff :)
 		$out->wrapWikiMsg( "<div class=\"successbox\">$1</div><br style=\"clear:both\" />",
-			array( 'renameusersuccess', $oldusername->getText(), $newusername->getText() ) );
+			[ 'renameusersuccess', $oldusername->getText(), $newusername->getText() ] );
 	}
 
 	/**
@@ -363,11 +394,32 @@ class SpecialRenameuser extends SpecialPage {
 	 * @param $type
 	 * @param $out OutputPage
 	 */
-	function showLogExtract( $username, $type, &$out ) {
+	protected function showLogExtract( $username, $type, &$out ) {
 		# Show relevant lines from the logs:
 		$logPage = new LogPage( $type );
 		$out->addHTML( Xml::element( 'h2', null, $logPage->getName()->text() ) . "\n" );
 		LogEventsList::showLogExtract( $out, $type, $username->getPrefixedText() );
+	}
+
+	/**
+	 * Return an array of subpages beginning with $search that this special page will accept.
+	 *
+	 * @param string $search Prefix to search for
+	 * @param int $limit Maximum number of results to return (usually 10)
+	 * @param int $offset Number of results to skip (usually 0)
+	 * @return string[] Matching subpages
+	 */
+	public function prefixSearchSubpages( $search, $limit, $offset ) {
+		if ( !class_exists( 'UserNamePrefixSearch' ) ) { // check for version 1.27
+			return [];
+		}
+		$user = User::newFromName( $search );
+		if ( !$user ) {
+			// No prefix suggestion for invalid user
+			return [];
+		}
+		// Autocomplete subpage as user list - public to allow caching
+		return UserNamePrefixSearch::search( 'public', $search, $limit, $offset );
 	}
 
 	protected function getGroupName() {

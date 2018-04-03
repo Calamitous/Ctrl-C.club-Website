@@ -20,12 +20,11 @@
 		"SkinTemplateBuildNavUrlsNav_urlsAfterPermalink": [
 			"CiteThisPageHooks::onSkinTemplateBuildNavUrlsNav_urlsAfterPermalink"
 		],
-		"SkinTemplateToolboxEnd": [
-			"CiteThisPageHooks::onSkinTemplateToolboxEnd"
-		]
+		"BaseTemplateToolbox": "CiteThisPageHooks::onBaseTemplateToolbox"
 	},
 	"ResourceModules": {
 		"ext.citeThisPage": {
+			"position": "top",
 			"styles": "ext.citeThisPage.css"
 		}
 	},
@@ -38,7 +37,14 @@
 	},
 	"AutoloadClasses": {
 		"SpecialCiteThisPage": "SpecialCiteThisPage.php",
-		"CiteThisPageOutput": "SpecialCiteThisPage.php",
 		"CiteThisPageHooks": "CiteThisPage.hooks.php"
-	}
+	},
+	"config": {
+		"CiteThisPageAdditionalNamespaces": {
+			"value": {},
+			"description": "An array of namespaces where the 'Cite this page' link is also visible, additionally to the content pages.",
+			"merge_strategy": "array_plus"
+		}
+	},
+	"manifest_version": 2
 }

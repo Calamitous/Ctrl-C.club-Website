@@ -33,6 +33,10 @@ class SpecialLockdb extends FormSpecialPage {
 		parent::__construct( 'Lockdb', 'siteadmin' );
 	}
 
+	public function doesWrites() {
+		return false;
+	}
+
 	public function requiresWrite() {
 		return false;
 	}
@@ -43,27 +47,30 @@ class SpecialLockdb extends FormSpecialPage {
 		if ( !is_writable( dirname( $this->getConfig()->get( 'ReadOnlyFile' ) ) ) ) {
 			throw new ErrorPageError( 'lockdb', 'lockfilenotwritable' );
 		}
+		if ( file_exists( $this->getConfig()->get( 'ReadOnlyFile' ) ) ) {
+			throw new ErrorPageError( 'lockdb', 'databaselocked' );
+		}
 	}
 
 	protected function getFormFields() {
-		return array(
-			'Reason' => array(
+		return [
+			'Reason' => [
 				'type' => 'textarea',
 				'rows' => 4,
 				'vertical-label' => true,
 				'label-message' => 'enterlockreason',
-			),
-			'Confirm' => array(
+			],
+			'Confirm' => [
 				'type' => 'toggle',
 				'label-message' => 'lockconfirm',
-			),
-		);
+			],
+		];
 	}
 
 	protected function alterForm( HTMLForm $form ) {
-		$form->setWrapperLegend( false );
-		$form->setHeaderText( $this->msg( 'lockdbtext' )->parseAsBlock() );
-		$form->setSubmitTextMsg( 'lockbtn' );
+		$form->setWrapperLegend( false )
+			->setHeaderText( $this->msg( 'lockdbtext' )->parseAsBlock() )
+			->setSubmitTextMsg( 'lockbtn' );
 	}
 
 	public function onSubmit( array $data ) {
@@ -73,9 +80,9 @@ class SpecialLockdb extends FormSpecialPage {
 			return Status::newFatal( 'locknoconfirm' );
 		}
 
-		wfSuppressWarnings();
+		MediaWiki\suppressWarnings();
 		$fp = fopen( $this->getConfig()->get( 'ReadOnlyFile' ), 'w' );
-		wfRestoreWarnings();
+		MediaWiki\restoreWarnings();
 
 		if ( false === $fp ) {
 			# This used to show a file not found error, but the likeliest reason for fopen()
@@ -99,6 +106,10 @@ class SpecialLockdb extends FormSpecialPage {
 		$out = $this->getOutput();
 		$out->addSubtitle( $this->msg( 'lockdbsuccesssub' ) );
 		$out->addWikiMsg( 'lockdbsuccesstext' );
+	}
+
+	protected function getDisplayFormat() {
+		return 'ooui';
 	}
 
 	protected function getGroupName() {

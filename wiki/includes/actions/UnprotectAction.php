@@ -37,7 +37,10 @@ class UnprotectAction extends ProtectAction {
 	}
 
 	public function show() {
-
 		$this->page->unprotect();
+	}
+
+	public function doesWrites() {
+		return true;
 	}
 }

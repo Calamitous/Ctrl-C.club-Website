@@ -9,8 +9,8 @@
 		"DaSch"
 	],
 	"url": "https://www.mediawiki.org/wiki/Extension:InputBox",
-	"description": "Allow inclusion of predefined HTML forms.",
 	"descriptionmsg": "inputbox-desc",
+	"license-name": "MIT",
 	"type": "parserhook",
 	"MessagesDirs": {
 		"InputBox": [
@@ -23,12 +23,21 @@
 	},
 	"ResourceModules": {
 		"ext.inputBox.styles": {
-			"styles": "ext.inputBox.styles.css"
+			"styles": "ext.inputBox.styles.css",
+			"position": "top",
+			"targets": [
+				"mobile",
+				"desktop"
+			]
 		},
 		"ext.inputBox": {
 			"scripts": "ext.inputBox.js",
 			"dependencies": [
 				"jquery.throttle-debounce"
+			],
+			"targets": [
+				"mobile",
+				"desktop"
 			]
 		}
 	},
@@ -46,5 +55,9 @@
 		"SpecialPageBeforeExecute": [
 			"InputBoxHooks::onSpecialPageBeforeExecute"
 		]
-	}
+	},
+	"ParserTestFiles": [
+		"tests/inputBoxParserTests.txt"
+	],
+	"manifest_version": 1
 }

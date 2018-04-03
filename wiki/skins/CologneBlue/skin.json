@@ -12,6 +12,9 @@
 	"ValidSkinNames": {
 		"cologneblue": "CologneBlue"
 	},
+	"requires": {
+		"MediaWiki": ">= 1.25.0"
+	},
 	"MessagesDirs": {
 		"CologneBlue": [
 			"i18n"
@@ -19,6 +22,7 @@
 	},
 	"ResourceModules": {
 		"skins.cologneblue": {
+			"position": "top",
 			"styles": {
 				"resources/screen.css": {
 					"media": "screen"
@@ -41,5 +45,6 @@
 	"AutoloadClasses": {
 		"SkinCologneBlue": "SkinCologneBlue.php",
 		"CologneBlueTemplate": "SkinCologneBlue.php"
-	}
+	},
+	"manifest_version": 1
 }

@@ -5,7 +5,7 @@
 ( function ( $ ) {
 	QUnit.module( 'mediawiki.jscompat', QUnit.newMwEnvironment() );
 
-	QUnit.test( 'Variable with Unicode letter in name', 3, function ( assert ) {
+	QUnit.test( 'Variable with Unicode letter in name', function ( assert ) {
 		var orig, ŝablono;
 
 		orig = 'some token';
@@ -39,12 +39,11 @@
 	});
 	*/
 
-	QUnit.test( 'Stripping of single initial newline from textarea\'s literal contents (bug 12130)', function ( assert ) {
+	QUnit.test( 'Stripping of single initial newline from textarea\'s literal contents (T14130)', function ( assert ) {
 		var maxn, n,
 			expected, $textarea;
 
 		maxn = 4;
-		QUnit.expect( maxn * 2 );
 
 		function repeat( str, n ) {
 			var out;
@@ -61,7 +60,7 @@
 			expected = repeat( '\n', n ) + 'some text';
 
 			$textarea = $( '<textarea>\n' + expected + '</textarea>' );
-			assert.equal( $textarea.val(), expected, 'Expecting ' + n + ' newlines (HTML contained ' + (n + 1) + ')' );
+			assert.equal( $textarea.val(), expected, 'Expecting ' + n + ' newlines (HTML contained ' + ( n + 1 ) + ')' );
 
 			$textarea = $( '<textarea>' ).val( expected );
 			assert.equal( $textarea.val(), expected, 'Expecting ' + n + ' newlines (from DOM set with ' + n + ')' );

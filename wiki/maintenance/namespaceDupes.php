@@ -26,6 +26,11 @@
 
 require_once __DIR__ . '/Maintenance.php';
 
+use MediaWiki\Linker\LinkTarget;
+use MediaWiki\MediaWikiServices;
+use Wikimedia\Rdbms\ResultWrapper;
+use Wikimedia\Rdbms\IMaintainableDatabase;
+
 /**
  * Maintenance script that checks for articles to fix after
  * adding/deleting namespaces.
@@ -35,16 +40,19 @@ require_once __DIR__ . '/Maintenance.php';
 class NamespaceConflictChecker extends Maintenance {
 
 	/**
-	 * @var DatabaseBase
+	 * @var IMaintainableDatabase
 	 */
 	protected $db;
 
-	private $resolvableCount = 0;
+	private $resolvablePages = 0;
 	private $totalPages = 0;
+
+	private $resolvableLinks = 0;
+	private $totalLinks = 0;
 
 	public function __construct() {
 		parent::__construct();
-		$this->mDescription = "";
+		$this->addDescription( 'Find and fix pages affected by namespace addition/removal' );
 		$this->addOption( 'fix', 'Attempt to automatically fix errors' );
 		$this->addOption( 'merge', "Instead of renaming conflicts, do a history merge with " .
 			"the correct title" );
@@ -64,16 +72,16 @@ class NamespaceConflictChecker extends Maintenance {
 	}
 
 	public function execute() {
-		$this->db = wfGetDB( DB_MASTER );
+		$this->db = $this->getDB( DB_MASTER );
 
-		$options = array(
+		$options = [
 			'fix' => $this->hasOption( 'fix' ),
 			'merge' => $this->hasOption( 'merge' ),
 			'add-suffix' => $this->getOption( 'add-suffix', '' ),
 			'add-prefix' => $this->getOption( 'add-prefix', '' ),
 			'move-talk' => $this->hasOption( 'move-talk' ),
 			'source-pseudo-namespace' => $this->getOption( 'source-pseudo-namespace', '' ),
-			'dest-namespace' => intval( $this->getOption( 'dest-namespace', 0 ) ) );
+			'dest-namespace' => intval( $this->getOption( 'dest-namespace', 0 ) ) ];
 
 		if ( $options['source-pseudo-namespace'] !== '' ) {
 			$retval = $this->checkPrefix( $options );
@@ -98,7 +106,7 @@ class NamespaceConflictChecker extends Maintenance {
 	private function checkAll( $options ) {
 		global $wgContLang, $wgNamespaceAliases, $wgCapitalLinks;
 
-		$spaces = array();
+		$spaces = [];
 
 		// List interwikis first, so they'll be overridden
 		// by any conflicting local namespaces.
@@ -129,7 +137,7 @@ class NamespaceConflictChecker extends Maintenance {
 		// We'll need to check for lowercase keys as well,
 		// since we're doing case-sensitive searches in the db.
 		foreach ( $spaces as $name => $ns ) {
-			$moreNames = array();
+			$moreNames = [];
 			$moreNames[] = $wgContLang->uc( $name );
 			$moreNames[] = $wgContLang->ucfirst( $wgContLang->lc( $name ) );
 			$moreNames[] = $wgContLang->ucwords( $name );
@@ -172,7 +180,43 @@ class NamespaceConflictChecker extends Maintenance {
 		}
 
 		$this->output( "{$this->totalPages} pages to fix, " .
-			"{$this->resolvableCount} were resolvable.\n" );
+			"{$this->resolvablePages} were resolvable.\n\n" );
+
+		foreach ( $spaces as $name => $ns ) {
+			if ( $ns != 0 ) {
+				/* Fix up link destinations for non-interwiki links only.
+				 *
+				 * For example if a page has [[Foo:Bar]] and then a Foo namespace
+				 * is introduced, pagelinks needs to be updated to have
+				 * page_namespace = NS_FOO.
+				 *
+				 * If instead an interwiki prefix was introduced called "Foo",
+				 * the link should instead be moved to the iwlinks table. If a new
+				 * language is introduced called "Foo", or if there is a pagelink
+				 * [[fr:Bar]] when interlanguage magic links are turned on, the
+				 * link would have to be moved to the langlinks table. Let's put
+				 * those cases in the too-hard basket for now. The consequences are
+				 * not especially severe.
+				 * @fixme Handle interwiki links, and pagelinks to Category:, File:
+				 * which probably need reparsing.
+				 */
+
+				$this->checkLinkTable( 'pagelinks', 'pl', $ns, $name, $options );
+				$this->checkLinkTable( 'templatelinks', 'tl', $ns, $name, $options );
+
+				// The redirect table has interwiki links randomly mixed in, we
+				// need to filter those out. For example [[w:Foo:Bar]] would
+				// have rd_interwiki=w and rd_namespace=0, which would match the
+				// query for a conflicting namespace "Foo" if filtering wasn't done.
+				$this->checkLinkTable( 'redirect', 'rd', $ns, $name, $options,
+					[ 'rd_interwiki' => null ] );
+				$this->checkLinkTable( 'redirect', 'rd', $ns, $name, $options,
+					[ 'rd_interwiki' => '' ] );
+			}
+		}
+
+		$this->output( "{$this->totalLinks} links to fix, " .
+			"{$this->resolvableLinks} were resolvable.\n" );
 
 		return $ok;
 	}
@@ -183,8 +227,8 @@ class NamespaceConflictChecker extends Maintenance {
 	 * @return array
 	 */
 	private function getInterwikiList() {
-		$result = Interwiki::getAllPrefixes();
-		$prefixes = array();
+		$result = MediaWikiServices::getInstance()->getInterwikiLookup()->getAllPrefixes();
+		$prefixes = [];
 		foreach ( $result as $row ) {
 			$prefixes[] = $row['iw_prefix'];
 		}
@@ -212,10 +256,10 @@ class NamespaceConflictChecker extends Maintenance {
 
 		$ok = true;
 		foreach ( $targets as $row ) {
-
 			// Find the new title and determine the action to take
 
-			$newTitle = $this->getDestinationTitle( $ns, $name, $row, $options );
+			$newTitle = $this->getDestinationTitle( $ns, $name,
+				$row->page_namespace, $row->page_title, $options );
 			$logStatus = false;
 			if ( !$newTitle ) {
 				$logStatus = 'invalid title';
@@ -271,24 +315,100 @@ class NamespaceConflictChecker extends Maintenance {
 						$newTitle->getPrefixedDBkey() . " (merge)$dryRunNote\n" );
 
 					if ( $options['fix'] ) {
-						$pageOK = $this->mergePage( $row->page_id, $newTitle );
+						$pageOK = $this->mergePage( $row, $newTitle );
 					}
 					break;
 			}
 
 			if ( $pageOK ) {
-				$this->resolvableCount++;
+				$this->resolvablePages++;
 			} else {
 				$ok = false;
 			}
 		}
 
-		// @fixme Also needs to do like self::getTargetList() on the
-		// *_namespace and *_title fields of pagelinks, templatelinks, and
-		// redirects, and schedule a LinksUpdate job or similar for each found
-		// *_from.
-
 		return $ok;
+	}
+
+	/**
+	 * Check and repair the destination fields in a link table
+	 * @param string $table The link table name
+	 * @param string $fieldPrefix The field prefix in the link table
+	 * @param int $ns Destination namespace id
+	 * @param string $name
+	 * @param array $options Associative array of validated command-line options
+	 * @param array $extraConds Extra conditions for the SQL query
+	 */
+	private function checkLinkTable( $table, $fieldPrefix, $ns, $name, $options,
+		$extraConds = []
+	) {
+		$batchConds = [];
+		$fromField = "{$fieldPrefix}_from";
+		$namespaceField = "{$fieldPrefix}_namespace";
+		$titleField = "{$fieldPrefix}_title";
+		$batchSize = 500;
+		while ( true ) {
+			$res = $this->db->select(
+				$table,
+				[ $fromField, $namespaceField, $titleField ],
+				array_merge( $batchConds, $extraConds, [
+					$namespaceField => 0,
+					$titleField . $this->db->buildLike( "$name:", $this->db->anyString() )
+				] ),
+				__METHOD__,
+				[
+					'ORDER BY' => [ $titleField, $fromField ],
+					'LIMIT' => $batchSize
+				]
+			);
+
+			if ( $res->numRows() == 0 ) {
+				break;
+			}
+			foreach ( $res as $row ) {
+				$logTitle = "from={$row->$fromField} ns={$row->$namespaceField} " .
+					"dbk={$row->$titleField}";
+				$destTitle = $this->getDestinationTitle( $ns, $name,
+					$row->$namespaceField, $row->$titleField, $options );
+				$this->totalLinks++;
+				if ( !$destTitle ) {
+					$this->output( "$table $logTitle *** INVALID\n" );
+					continue;
+				}
+				$this->resolvableLinks++;
+				if ( !$options['fix'] ) {
+					$this->output( "$table $logTitle -> " .
+						$destTitle->getPrefixedDBkey() . " DRY RUN\n" );
+					continue;
+				}
+
+				$this->db->update( $table,
+					// SET
+					[
+						$namespaceField => $destTitle->getNamespace(),
+						$titleField => $destTitle->getDBkey()
+					],
+					// WHERE
+					[
+						$namespaceField => 0,
+						$titleField => $row->$titleField,
+						$fromField => $row->$fromField
+					],
+					__METHOD__,
+					[ 'IGNORE' ]
+				);
+				$this->output( "$table $logTitle -> " .
+					$destTitle->getPrefixedDBkey() . "\n" );
+			}
+			$encLastTitle = $this->db->addQuotes( $row->$titleField );
+			$encLastFrom = $this->db->addQuotes( $row->$fromField );
+
+			$batchConds = [
+				"$titleField > $encLastTitle " .
+				"OR ($titleField = $encLastTitle AND $fromField > $encLastFrom)" ];
+
+			wfWaitForSlaves();
+		}
 	}
 
 	/**
@@ -318,41 +438,42 @@ class NamespaceConflictChecker extends Maintenance {
 	 */
 	private function getTargetList( $ns, $name, $options ) {
 		if ( $options['move-talk'] && MWNamespace::isSubject( $ns ) ) {
-			$checkNamespaces = array( NS_MAIN, NS_TALK );
+			$checkNamespaces = [ NS_MAIN, NS_TALK ];
 		} else {
 			$checkNamespaces = NS_MAIN;
 		}
 
 		return $this->db->select( 'page',
-			array(
+			[
 				'page_id',
 				'page_title',
 				'page_namespace',
-			),
-			array(
+			],
+			[
 				'page_namespace' => $checkNamespaces,
 				'page_title' . $this->db->buildLike( "$name:", $this->db->anyString() ),
-			),
+			],
 			__METHOD__
 		);
 	}
 
 	/**
-	 * Get the preferred destination title for a given target page row.
-	 * @param integer $ns The destination namespace ID
+	 * Get the preferred destination title for a given target page.
+	 * @param int $ns The destination namespace ID
 	 * @param string $name The conflicting prefix
-	 * @param stdClass $row
+	 * @param int $sourceNs The source namespace
+	 * @param int $sourceDbk The source DB key (i.e. page_title)
 	 * @param array $options Associative array of validated command-line options
 	 * @return Title|false
 	 */
-	private function getDestinationTitle( $ns, $name, $row, $options ) {
-		$dbk = substr( $row->page_title, strlen( "$name:" ) );
+	private function getDestinationTitle( $ns, $name, $sourceNs, $sourceDbk, $options ) {
+		$dbk = substr( $sourceDbk, strlen( "$name:" ) );
 		if ( $ns == 0 ) {
 			// An interwiki; try an alternate encoding with '-' for ':'
 			$dbk = "$name-" . $dbk;
 		}
 		$destNS = $ns;
-		if ( $row->page_namespace == NS_TALK && MWNamespace::isSubject( $ns ) ) {
+		if ( $sourceNs == NS_TALK && MWNamespace::isSubject( $ns ) ) {
 			// This is an associated talk page moved with the --move-talk feature.
 			$destNS = MWNamespace::getTalk( $destNS );
 		}
@@ -367,19 +488,19 @@ class NamespaceConflictChecker extends Maintenance {
 	 * Get an alternative title to move a page to. This is used if the
 	 * preferred destination title already exists.
 	 *
-	 * @param Title $title
+	 * @param LinkTarget $linkTarget
 	 * @param array $options Associative array of validated command-line options
 	 * @return Title|bool
 	 */
-	private function getAlternateTitle( $title, $options ) {
+	private function getAlternateTitle( LinkTarget $linkTarget, $options ) {
 		$prefix = $options['add-prefix'];
 		$suffix = $options['add-suffix'];
 		if ( $prefix == '' && $suffix == '' ) {
 			return false;
 		}
 		while ( true ) {
-			$dbk = $prefix . $title->getDBkey() . $suffix;
-			$title = Title::makeTitleSafe( $title->getNamespace(), $dbk );
+			$dbk = $prefix . $linkTarget->getDBkey() . $suffix;
+			$title = Title::makeTitleSafe( $linkTarget->getNamespace(), $dbk );
 			if ( !$title ) {
 				return false;
 			}
@@ -392,25 +513,35 @@ class NamespaceConflictChecker extends Maintenance {
 	/**
 	 * Move a page
 	 *
-	 * @fixme Update pl_from_namespace etc.
-	 *
 	 * @param integer $id The page_id
-	 * @param Title $newTitle The new title
+	 * @param LinkTarget $newLinkTarget The new title link target
 	 * @return bool
 	 */
-	private function movePage( $id, Title $newTitle ) {
+	private function movePage( $id, LinkTarget $newLinkTarget ) {
 		$this->db->update( 'page',
-			array(
-				"page_namespace" => $newTitle->getNamespace(),
-				"page_title" => $newTitle->getDBkey(),
-			),
-			array(
+			[
+				"page_namespace" => $newLinkTarget->getNamespace(),
+				"page_title" => $newLinkTarget->getDBkey(),
+			],
+			[
 				"page_id" => $id,
-			),
+			],
 			__METHOD__ );
 
-		// @fixme Needs updating the *_from_namespace fields in categorylinks,
-		// pagelinks, templatelinks and imagelinks.
+		// Update *_from_namespace in links tables
+		$fromNamespaceTables = [
+			[ 'pagelinks', 'pl' ],
+			[ 'templatelinks', 'tl' ],
+			[ 'imagelinks', 'il' ] ];
+		foreach ( $fromNamespaceTables as $tableInfo ) {
+			list( $table, $fieldPrefix ) = $tableInfo;
+			$this->db->update( $table,
+				// SET
+				[ "{$fieldPrefix}_from_namespace" => $newLinkTarget->getNamespace() ],
+				// WHERE
+				[ "{$fieldPrefix}_from" => $id ],
+				__METHOD__ );
+		}
 
 		return true;
 	}
@@ -423,12 +554,12 @@ class NamespaceConflictChecker extends Maintenance {
 	 * recentchanges review, etc.
 	 *
 	 * @param integer $id The page_id
-	 * @param Title $newTitle The new title
+	 * @param LinkTarget $linkTarget The new link target
 	 * @param string $logStatus This is set to the log status message on failure
 	 * @return bool
 	 */
-	private function canMerge( $id, Title $newTitle, &$logStatus ) {
-		$latestDest = Revision::newFromTitle( $newTitle, 0, Revision::READ_LATEST );
+	private function canMerge( $id, LinkTarget $linkTarget, &$logStatus ) {
+		$latestDest = Revision::newFromTitle( $linkTarget, 0, Revision::READ_LATEST );
 		$latestSource = Revision::newFromPageId( $id, 0, Revision::READ_LATEST );
 		if ( $latestSource->getTimestamp() > $latestDest->getTimestamp() ) {
 			$logStatus = 'cannot merge since source is later';
@@ -441,25 +572,46 @@ class NamespaceConflictChecker extends Maintenance {
 	/**
 	 * Merge page histories
 	 *
-	 * @param integer $id The page_id
+	 * @param stdClass $row Page row
 	 * @param Title $newTitle The new title
+	 * @return bool
 	 */
-	private function mergePage( $id, Title $newTitle ) {
-		$destId = $newTitle->getArticleId();
-		$this->db->begin( __METHOD__ );
+	private function mergePage( $row, Title $newTitle ) {
+		$id = $row->page_id;
+
+		// Construct the WikiPage object we will need later, while the
+		// page_id still exists. Note that this cannot use makeTitleSafe(),
+		// we are deliberately constructing an invalid title.
+		$sourceTitle = Title::makeTitle( $row->page_namespace, $row->page_title );
+		$sourceTitle->resetArticleID( $id );
+		$wikiPage = new WikiPage( $sourceTitle );
+		$wikiPage->loadPageData( 'fromdbmaster' );
+
+		$destId = $newTitle->getArticleID();
+		$this->beginTransaction( $this->db, __METHOD__ );
 		$this->db->update( 'revision',
 			// SET
-			array( 'rev_page' => $destId ),
+			[ 'rev_page' => $destId ],
 			// WHERE
-			array( 'rev_page' => $id ),
+			[ 'rev_page' => $id ],
 			__METHOD__ );
 
-		$this->db->delete( 'page', array( 'page_id' => $id ), __METHOD__ );
+		$this->db->delete( 'page', [ 'page_id' => $id ], __METHOD__ );
 
-		// @fixme Need WikiPage::doDeleteUpdates() or similar to avoid orphan
-		// rows in the links tables.
+		$this->commitTransaction( $this->db, __METHOD__ );
 
-		$this->db->commit( __METHOD__ );
+		/* Call LinksDeletionUpdate to delete outgoing links from the old title,
+		 * and update category counts.
+		 *
+		 * Calling external code with a fake broken Title is a fairly dubious
+		 * idea. It's necessary because it's quite a lot of code to duplicate,
+		 * but that also makes it fragile since it would be easy for someone to
+		 * accidentally introduce an assumption of title validity to the code we
+		 * are calling.
+		 */
+		DeferredUpdates::addUpdate( new LinksDeletionUpdate( $wikiPage ) );
+		DeferredUpdates::doUpdates();
+
 		return true;
 	}
 }

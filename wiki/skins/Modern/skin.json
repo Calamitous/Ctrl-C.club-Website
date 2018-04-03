@@ -9,6 +9,9 @@
 	"namemsg": "skinname-modern",
 	"license-name": "GPL-2.0+",
 	"type": "skin",
+	"requires": {
+		"MediaWiki": ">= 1.25.0"
+	},
 	"ValidSkinNames": {
 		"modern": "Modern"
 	},
@@ -19,6 +22,7 @@
 	},
 	"ResourceModules": {
 		"skins.modern": {
+			"position": "top",
 			"styles": {
 				"resources/main.css": {
 					"media": "screen"
@@ -36,5 +40,12 @@
 	"AutoloadClasses": {
 		"SkinModern": "SkinModern.php",
 		"ModernTemplate": "SkinModern.php"
-	}
+	},
+	"ResourceModuleSkinStyles": {
+		"modern": {
+			"+mediawiki.action.view.redirectPage": "skinStyles/mediawiki.action.view.redirectPage.css",
+			"+mediawiki.special.preferences.styles": "skinStyles/mediawiki.special.preferences.styles.less"
+		}
+	},
+	"manifest_version": 1
 }

@@ -48,32 +48,39 @@ class RevDelLogItem extends RevDelItem {
 	}
 
 	public function getBits() {
-		return $this->row->log_deleted;
+		return (int)$this->row->log_deleted;
 	}
 
 	public function setBits( $bits ) {
 		$dbw = wfGetDB( DB_MASTER );
-		$dbw->update( 'recentchanges',
-			array(
-				'rc_deleted' => $bits,
-				'rc_patrolled' => 1
-			),
-			array(
-				'rc_logid' => $this->row->log_id,
-				'rc_timestamp' => $this->row->log_timestamp // index
-			),
-			__METHOD__
-		);
+
 		$dbw->update( 'logging',
-			array( 'log_deleted' => $bits ),
-			array(
+			[ 'log_deleted' => $bits ],
+			[
 				'log_id' => $this->row->log_id,
-				'log_deleted' => $this->getBits()
-			),
+				'log_deleted' => $this->getBits() // cas
+			],
 			__METHOD__
 		);
 
-		return (bool)$dbw->affectedRows();
+		if ( !$dbw->affectedRows() ) {
+			// Concurrent fail!
+			return false;
+		}
+
+		$dbw->update( 'recentchanges',
+			[
+				'rc_deleted' => $bits,
+				'rc_patrolled' => 1
+			],
+			[
+				'rc_logid' => $this->row->log_id,
+				'rc_timestamp' => $this->row->log_timestamp // index
+			],
+			__METHOD__
+		);
+
+		return true;
 	}
 
 	public function getHTML() {
@@ -85,18 +92,19 @@ class RevDelLogItem extends RevDelItem {
 		$formatter->setAudience( LogFormatter::FOR_THIS_USER );
 
 		// Log link for this page
-		$loglink = Linker::link(
+		$loglink = $this->getLinkRenderer()->makeLink(
 			SpecialPage::getTitleFor( 'Log' ),
-			$this->list->msg( 'log' )->escaped(),
-			array(),
-			array( 'page' => $title->getPrefixedText() )
+			$this->list->msg( 'log' )->text(),
+			[],
+			[ 'page' => $title->getPrefixedText() ]
 		);
 		$loglink = $this->list->msg( 'parentheses' )->rawParams( $loglink )->escaped();
 		// User links and action text
 		$action = $formatter->getActionText();
 		// Comment
+		$comment = CommentStore::newKey( 'log_comment' )->getComment( $this->row )->text;
 		$comment = $this->list->getLanguage()->getDirMark()
-			. Linker::commentBlock( $this->row->log_comment );
+			. Linker::commentBlock( $comment );
 
 		if ( LogEventsList::isDeleted( $this->row, LogPage::DELETED_COMMENT ) ) {
 			$comment = '<span class="history-deleted">' . $comment . '</span>';
@@ -108,34 +116,28 @@ class RevDelLogItem extends RevDelItem {
 	public function getApiData( ApiResult $result ) {
 		$logEntry = DatabaseLogEntry::newFromRow( $this->row );
 		$user = $this->list->getUser();
-		$ret = array(
+		$ret = [
 			'id' => $logEntry->getId(),
 			'type' => $logEntry->getType(),
 			'action' => $logEntry->getSubtype(),
-		);
-		$ret += $logEntry->isDeleted( LogPage::DELETED_USER )
-			? array( 'userhidden' => '' )
-			: array();
-		$ret += $logEntry->isDeleted( LogPage::DELETED_COMMENT )
-			? array( 'commenthidden' => '' )
-			: array();
-		$ret += $logEntry->isDeleted( LogPage::DELETED_ACTION )
-			? array( 'actionhidden' => '' )
-			: array();
+			'userhidden' => (bool)$logEntry->isDeleted( LogPage::DELETED_USER ),
+			'commenthidden' => (bool)$logEntry->isDeleted( LogPage::DELETED_COMMENT ),
+			'actionhidden' => (bool)$logEntry->isDeleted( LogPage::DELETED_ACTION ),
+		];
 
 		if ( LogEventsList::userCan( $this->row, LogPage::DELETED_ACTION, $user ) ) {
 			$ret['params'] = LogFormatter::newFromEntry( $logEntry )->formatParametersForApi();
 		}
 		if ( LogEventsList::userCan( $this->row, LogPage::DELETED_USER, $user ) ) {
-			$ret += array(
+			$ret += [
 				'userid' => $this->row->log_user,
 				'user' => $this->row->log_user_text,
-			);
+			];
 		}
 		if ( LogEventsList::userCan( $this->row, LogPage::DELETED_COMMENT, $user ) ) {
-			$ret += array(
-				'comment' => $this->row->log_comment,
-			);
+			$ret += [
+				'comment' => CommentStore::newKey( 'log_comment' )->getComment( $this->row )->text,
+			];
 		}
 
 		return $ret;

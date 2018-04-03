@@ -18,18 +18,23 @@ class ApiEditPageTest extends ApiTestCase {
 
 		parent::setUp();
 
-		$this->setMwGlobals( array(
+		$this->setMwGlobals( [
 			'wgExtraNamespaces' => $wgExtraNamespaces,
 			'wgNamespaceContentModels' => $wgNamespaceContentModels,
 			'wgContentHandlers' => $wgContentHandlers,
 			'wgContLang' => $wgContLang,
-		) );
+		] );
 
 		$wgExtraNamespaces[12312] = 'Dummy';
 		$wgExtraNamespaces[12313] = 'Dummy_talk';
+		$wgExtraNamespaces[12314] = 'DummyNonText';
+		$wgExtraNamespaces[12315] = 'DummyNonText_talk';
 
 		$wgNamespaceContentModels[12312] = "testing";
+		$wgNamespaceContentModels[12314] = "testing-nontext";
+
 		$wgContentHandlers["testing"] = 'DummyContentHandlerForTesting';
+		$wgContentHandlers["testing-nontext"] = 'DummyNonTextContentHandler';
 
 		MWNamespace::getCanonicalNamespaces( true ); # reset namespace cache
 		$wgContLang->resetNamespaces(); # reset namespace cache
@@ -46,11 +51,11 @@ class ApiEditPageTest extends ApiTestCase {
 		$name = 'Help:ApiEditPageTest_testEdit'; // assume Help namespace to default to wikitext
 
 		// -- test new page --------------------------------------------
-		$apiResult = $this->doApiRequestWithToken( array(
+		$apiResult = $this->doApiRequestWithToken( [
 			'action' => 'edit',
 			'title' => $name,
 			'text' => 'some text',
-		) );
+		] );
 		$apiResult = $apiResult[0];
 
 		// Validate API result data
@@ -64,11 +69,11 @@ class ApiEditPageTest extends ApiTestCase {
 		$this->assertArrayHasKey( 'pageid', $apiResult['edit'] );
 
 		// -- test existing page, no change ----------------------------
-		$data = $this->doApiRequestWithToken( array(
+		$data = $this->doApiRequestWithToken( [
 			'action' => 'edit',
 			'title' => $name,
 			'text' => 'some text',
-		) );
+		] );
 
 		$this->assertEquals( 'Success', $data[0]['edit']['result'] );
 
@@ -76,11 +81,11 @@ class ApiEditPageTest extends ApiTestCase {
 		$this->assertArrayHasKey( 'nochange', $data[0]['edit'] );
 
 		// -- test existing page, with change --------------------------
-		$data = $this->doApiRequestWithToken( array(
+		$data = $this->doApiRequestWithToken( [
 			'action' => 'edit',
 			'title' => $name,
 			'text' => 'different text'
-		) );
+		] );
 
 		$this->assertEquals( 'Success', $data[0]['edit']['result'] );
 
@@ -96,57 +101,30 @@ class ApiEditPageTest extends ApiTestCase {
 		);
 	}
 
-	public function testNonTextEdit() {
-		$name = 'Dummy:ApiEditPageTest_testNonTextEdit';
-		$data = serialize( 'some bla bla text' );
-
-		// -- test new page --------------------------------------------
-		$apiResult = $this->doApiRequestWithToken( array(
-			'action' => 'edit',
-			'title' => $name,
-			'text' => $data, ) );
-		$apiResult = $apiResult[0];
-
-		// Validate API result data
-		$this->assertArrayHasKey( 'edit', $apiResult );
-		$this->assertArrayHasKey( 'result', $apiResult['edit'] );
-		$this->assertEquals( 'Success', $apiResult['edit']['result'] );
-
-		$this->assertArrayHasKey( 'new', $apiResult['edit'] );
-		$this->assertArrayNotHasKey( 'nochange', $apiResult['edit'] );
-
-		$this->assertArrayHasKey( 'pageid', $apiResult['edit'] );
-
-		// validate resulting revision
-		$page = WikiPage::factory( Title::newFromText( $name ) );
-		$this->assertEquals( "testing", $page->getContentModel() );
-		$this->assertEquals( $data, $page->getContent()->serialize() );
-	}
-
 	/**
 	 * @return array
 	 */
 	public static function provideEditAppend() {
-		return array(
-			array( #0: append
+		return [
+			[ # 0: append
 				'foo', 'append', 'bar', "foobar"
-			),
-			array( #1: prepend
+			],
+			[ # 1: prepend
 				'foo', 'prepend', 'bar', "barfoo"
-			),
-			array( #2: append to empty page
+			],
+			[ # 2: append to empty page
 				'', 'append', 'foo', "foo"
-			),
-			array( #3: prepend to empty page
+			],
+			[ # 3: prepend to empty page
 				'', 'prepend', 'foo', "foo"
-			),
-			array( #4: append to non-existing page
+			],
+			[ # 4: append to non-existing page
 				null, 'append', 'foo', "foo"
-			),
-			array( #5: prepend to non-existing page
+			],
+			[ # 5: prepend to non-existing page
 				null, 'prepend', 'foo', "foo"
-			),
-		);
+			],
+		];
 	}
 
 	/**
@@ -161,19 +139,19 @@ class ApiEditPageTest extends ApiTestCase {
 
 		// -- create page (or not) -----------------------------------------
 		if ( $text !== null ) {
-			list( $re ) = $this->doApiRequestWithToken( array(
+			list( $re ) = $this->doApiRequestWithToken( [
 				'action' => 'edit',
 				'title' => $name,
-				'text' => $text, ) );
+				'text' => $text, ] );
 
 			$this->assertEquals( 'Success', $re['edit']['result'] ); // sanity
 		}
 
 		// -- try append/prepend --------------------------------------------
-		list( $re ) = $this->doApiRequestWithToken( array(
+		list( $re ) = $this->doApiRequestWithToken( [
 			'action' => 'edit',
 			'title' => $name,
-			$op . 'text' => $append, ) );
+			$op . 'text' => $append, ] );
 
 		$this->assertEquals( 'Success', $re['edit']['result'] );
 
@@ -197,12 +175,12 @@ class ApiEditPageTest extends ApiTestCase {
 		// Preload the page with some text
 		$page->doEditContent( ContentHandler::makeContent( $text, $page->getTitle() ), 'summary' );
 
-		list( $re ) = $this->doApiRequestWithToken( array(
+		list( $re ) = $this->doApiRequestWithToken( [
 			'action' => 'edit',
 			'title' => $name,
 			'section' => '1',
 			'text' => "==section 1==\nnew content 1",
-		) );
+		] );
 		$this->assertEquals( 'Success', $re['edit']['result'] );
 		$newtext = WikiPage::factory( Title::newFromText( $name ) )
 			->getContent( Revision::RAW )
@@ -211,22 +189,22 @@ class ApiEditPageTest extends ApiTestCase {
 
 		// Test that we raise a 'nosuchsection' error
 		try {
-			$this->doApiRequestWithToken( array(
+			$this->doApiRequestWithToken( [
 				'action' => 'edit',
 				'title' => $name,
 				'section' => '9999',
 				'text' => 'text',
-			) );
-			$this->fail( "Should have raised a UsageException" );
-		} catch ( UsageException $e ) {
-			$this->assertEquals( 'nosuchsection', $e->getCodeString() );
+			] );
+			$this->fail( "Should have raised an ApiUsageException" );
+		} catch ( ApiUsageException $e ) {
+			$this->assertTrue( self::apiExceptionHasCode( $e, 'nosuchsection' ) );
 		}
 	}
 
 	/**
 	 * Test action=edit&section=new
 	 * Run it twice so we test adding a new section on a
-	 * page that doesn't exist (bug 52830) and one that
+	 * page that doesn't exist (T54830) and one that
 	 * does exist
 	 */
 	public function testEditNewSection() {
@@ -234,13 +212,13 @@ class ApiEditPageTest extends ApiTestCase {
 
 		// Test on a page that does not already exist
 		$this->assertFalse( Title::newFromText( $name )->exists() );
-		list( $re ) = $this->doApiRequestWithToken( array(
+		list( $re ) = $this->doApiRequestWithToken( [
 			'action' => 'edit',
 			'title' => $name,
 			'section' => 'new',
 			'text' => 'test',
 			'summary' => 'header',
-		));
+		] );
 
 		$this->assertEquals( 'Success', $re['edit']['result'] );
 		// Check the page text is correct
@@ -251,13 +229,13 @@ class ApiEditPageTest extends ApiTestCase {
 
 		// Now on one that does
 		$this->assertTrue( Title::newFromText( $name )->exists() );
-		list( $re2 ) = $this->doApiRequestWithToken( array(
+		list( $re2 ) = $this->doApiRequestWithToken( [
 			'action' => 'edit',
 			'title' => $name,
 			'section' => 'new',
 			'text' => 'test',
 			'summary' => 'header',
-		));
+		] );
 
 		$this->assertEquals( 'Success', $re2['edit']['result'] );
 		$text = WikiPage::factory( Title::newFromText( $name ) )
@@ -284,29 +262,29 @@ class ApiEditPageTest extends ApiTestCase {
 
 		// base edit for content
 		$page->doEditContent( new WikitextContent( "Foo" ),
-			"testing 1", EDIT_NEW, false, self::$users['sysop']->user );
+			"testing 1", EDIT_NEW, false, self::$users['sysop']->getUser() );
 		$this->forceRevisionDate( $page, '20120101000000' );
 		$baseTime = $page->getRevision()->getTimestamp();
 
 		// base edit for redirect
 		$rpage->doEditContent( new WikitextContent( "#REDIRECT [[$name]]" ),
-			"testing 1", EDIT_NEW, false, self::$users['sysop']->user );
+			"testing 1", EDIT_NEW, false, self::$users['sysop']->getUser() );
 		$this->forceRevisionDate( $rpage, '20120101000000' );
 
 		// conflicting edit to redirect
 		$rpage->doEditContent( new WikitextContent( "#REDIRECT [[$name]]\n\n[[Category:Test]]" ),
-			"testing 2", EDIT_UPDATE, $page->getLatest(), self::$users['uploader']->user );
+			"testing 2", EDIT_UPDATE, $page->getLatest(), self::$users['uploader']->getUser() );
 		$this->forceRevisionDate( $rpage, '20120101020202' );
 
 		// try to save edit, following the redirect
-		list( $re, , ) = $this->doApiRequestWithToken( array(
+		list( $re, , ) = $this->doApiRequestWithToken( [
 			'action' => 'edit',
 			'title' => $rname,
 			'text' => 'nix bar!',
 			'basetimestamp' => $baseTime,
 			'section' => 'new',
 			'redirect' => true,
-		), null, self::$users['sysop']->user );
+		], null, self::$users['sysop']->getUser() );
 
 		$this->assertEquals( 'Success', $re['edit']['result'],
 			"no problems expected when following redirect" );
@@ -330,33 +308,33 @@ class ApiEditPageTest extends ApiTestCase {
 
 		// base edit for content
 		$page->doEditContent( new WikitextContent( "Foo" ),
-			"testing 1", EDIT_NEW, false, self::$users['sysop']->user );
+			"testing 1", EDIT_NEW, false, self::$users['sysop']->getUser() );
 		$this->forceRevisionDate( $page, '20120101000000' );
 		$baseTime = $page->getRevision()->getTimestamp();
 
 		// base edit for redirect
 		$rpage->doEditContent( new WikitextContent( "#REDIRECT [[$name]]" ),
-			"testing 1", EDIT_NEW, false, self::$users['sysop']->user );
+			"testing 1", EDIT_NEW, false, self::$users['sysop']->getUser() );
 		$this->forceRevisionDate( $rpage, '20120101000000' );
 
 		// conflicting edit to redirect
 		$rpage->doEditContent( new WikitextContent( "#REDIRECT [[$name]]\n\n[[Category:Test]]" ),
-			"testing 2", EDIT_UPDATE, $page->getLatest(), self::$users['uploader']->user );
+			"testing 2", EDIT_UPDATE, $page->getLatest(), self::$users['uploader']->getUser() );
 		$this->forceRevisionDate( $rpage, '20120101020202' );
 
 		// try to save edit, following the redirect but without creating a section
 		try {
-			$this->doApiRequestWithToken( array(
+			$this->doApiRequestWithToken( [
 				'action' => 'edit',
 				'title' => $rname,
 				'text' => 'nix bar!',
 				'basetimestamp' => $baseTime,
 				'redirect' => true,
-			), null, self::$users['sysop']->user );
+			], null, self::$users['sysop']->getUser() );
 
 			$this->fail( 'redirect-appendonly error expected' );
-		} catch ( UsageException $ex ) {
-			$this->assertEquals( 'redirect-appendonly', $ex->getCodeString() );
+		} catch ( ApiUsageException $ex ) {
+			$this->assertTrue( self::apiExceptionHasCode( $ex, 'redirect-appendonly' ) );
 		}
 	}
 
@@ -372,27 +350,27 @@ class ApiEditPageTest extends ApiTestCase {
 
 		// base edit
 		$page->doEditContent( new WikitextContent( "Foo" ),
-			"testing 1", EDIT_NEW, false, self::$users['sysop']->user );
+			"testing 1", EDIT_NEW, false, self::$users['sysop']->getUser() );
 		$this->forceRevisionDate( $page, '20120101000000' );
 		$baseTime = $page->getRevision()->getTimestamp();
 
 		// conflicting edit
 		$page->doEditContent( new WikitextContent( "Foo bar" ),
-			"testing 2", EDIT_UPDATE, $page->getLatest(), self::$users['uploader']->user );
+			"testing 2", EDIT_UPDATE, $page->getLatest(), self::$users['uploader']->getUser() );
 		$this->forceRevisionDate( $page, '20120101020202' );
 
 		// try to save edit, expect conflict
 		try {
-			$this->doApiRequestWithToken( array(
+			$this->doApiRequestWithToken( [
 				'action' => 'edit',
 				'title' => $name,
 				'text' => 'nix bar!',
 				'basetimestamp' => $baseTime,
-			), null, self::$users['sysop']->user );
+			], null, self::$users['sysop']->getUser() );
 
 			$this->fail( 'edit conflict expected' );
-		} catch ( UsageException $ex ) {
-			$this->assertEquals( 'editconflict', $ex->getCodeString() );
+		} catch ( ApiUsageException $ex ) {
+			$this->assertTrue( self::apiExceptionHasCode( $ex, 'editconflict' ) );
 		}
 	}
 
@@ -411,23 +389,23 @@ class ApiEditPageTest extends ApiTestCase {
 
 		// base edit
 		$page->doEditContent( new WikitextContent( "Foo" ),
-			"testing 1", EDIT_NEW, false, self::$users['sysop']->user );
+			"testing 1", EDIT_NEW, false, self::$users['sysop']->getUser() );
 		$this->forceRevisionDate( $page, '20120101000000' );
 		$baseTime = $page->getRevision()->getTimestamp();
 
 		// conflicting edit
 		$page->doEditContent( new WikitextContent( "Foo bar" ),
-			"testing 2", EDIT_UPDATE, $page->getLatest(), self::$users['uploader']->user );
+			"testing 2", EDIT_UPDATE, $page->getLatest(), self::$users['uploader']->getUser() );
 		$this->forceRevisionDate( $page, '20120101020202' );
 
 		// try to save edit, expect no conflict
-		list( $re, , ) = $this->doApiRequestWithToken( array(
+		list( $re, , ) = $this->doApiRequestWithToken( [
 			'action' => 'edit',
 			'title' => $name,
 			'text' => 'nix bar!',
 			'basetimestamp' => $baseTime,
 			'section' => 'new',
-		), null, self::$users['sysop']->user );
+		], null, self::$users['sysop']->getUser() );
 
 		$this->assertEquals( 'Success', $re['edit']['result'],
 			"no edit conflict expected here" );
@@ -438,7 +416,7 @@ class ApiEditPageTest extends ApiTestCase {
 		$count++;
 
 		/*
-		* bug 41990: if the target page has a newer revision than the redirect, then editing the
+		* T43990: if the target page has a newer revision than the redirect, then editing the
 		* redirect while specifying 'redirect' and *not* specifying 'basetimestamp' erroneously
 		* caused an edit conflict to be detected.
 		*/
@@ -454,27 +432,27 @@ class ApiEditPageTest extends ApiTestCase {
 
 		// base edit for content
 		$page->doEditContent( new WikitextContent( "Foo" ),
-			"testing 1", EDIT_NEW, false, self::$users['sysop']->user );
+			"testing 1", EDIT_NEW, false, self::$users['sysop']->getUser() );
 		$this->forceRevisionDate( $page, '20120101000000' );
 
 		// base edit for redirect
 		$rpage->doEditContent( new WikitextContent( "#REDIRECT [[$name]]" ),
-			"testing 1", EDIT_NEW, false, self::$users['sysop']->user );
+			"testing 1", EDIT_NEW, false, self::$users['sysop']->getUser() );
 		$this->forceRevisionDate( $rpage, '20120101000000' );
 
 		// new edit to content
 		$page->doEditContent( new WikitextContent( "Foo bar" ),
-			"testing 2", EDIT_UPDATE, $page->getLatest(), self::$users['uploader']->user );
+			"testing 2", EDIT_UPDATE, $page->getLatest(), self::$users['uploader']->getUser() );
 		$this->forceRevisionDate( $rpage, '20120101020202' );
 
 		// try to save edit; should work, following the redirect.
-		list( $re, , ) = $this->doApiRequestWithToken( array(
+		list( $re, , ) = $this->doApiRequestWithToken( [
 			'action' => 'edit',
 			'title' => $rname,
 			'text' => 'nix bar!',
 			'section' => 'new',
 			'redirect' => true,
-		), null, self::$users['sysop']->user );
+		], null, self::$users['sysop']->getUser() );
 
 		$this->assertEquals( 'Success', $re['edit']['result'],
 			"no edit conflict expected here" );
@@ -488,9 +466,104 @@ class ApiEditPageTest extends ApiTestCase {
 		$dbw = wfGetDB( DB_MASTER );
 
 		$dbw->update( 'revision',
-			array( 'rev_timestamp' => $dbw->timestamp( $timestamp ) ),
-			array( 'rev_id' => $page->getLatest() ) );
+			[ 'rev_timestamp' => $dbw->timestamp( $timestamp ) ],
+			[ 'rev_id' => $page->getLatest() ] );
 
 		$page->clear();
+	}
+
+	public function testCheckDirectApiEditingDisallowed_forNonTextContent() {
+		$this->setExpectedException(
+			'ApiUsageException',
+			'Direct editing via API is not supported for content model ' .
+				'testing used by Dummy:ApiEditPageTest_nonTextPageEdit'
+		);
+
+		$this->doApiRequestWithToken( [
+			'action' => 'edit',
+			'title' => 'Dummy:ApiEditPageTest_nonTextPageEdit',
+			'text' => '{"animals":["kittens!"]}'
+		] );
+	}
+
+	public function testSupportsDirectApiEditing_withContentHandlerOverride() {
+		$name = 'DummyNonText:ApiEditPageTest_testNonTextEdit';
+		$data = serialize( 'some bla bla text' );
+
+		$result = $this->doApiRequestWithToken( [
+			'action' => 'edit',
+			'title' => $name,
+			'text' => $data,
+		] );
+
+		$apiResult = $result[0];
+
+		// Validate API result data
+		$this->assertArrayHasKey( 'edit', $apiResult );
+		$this->assertArrayHasKey( 'result', $apiResult['edit'] );
+		$this->assertEquals( 'Success', $apiResult['edit']['result'] );
+
+		$this->assertArrayHasKey( 'new', $apiResult['edit'] );
+		$this->assertArrayNotHasKey( 'nochange', $apiResult['edit'] );
+
+		$this->assertArrayHasKey( 'pageid', $apiResult['edit'] );
+
+		// validate resulting revision
+		$page = WikiPage::factory( Title::newFromText( $name ) );
+		$this->assertEquals( "testing-nontext", $page->getContentModel() );
+		$this->assertEquals( $data, $page->getContent()->serialize() );
+	}
+
+	/**
+	 * This test verifies that after changing the content model
+	 * of a page, undoing that edit via the API will also
+	 * undo the content model change.
+	 */
+	public function testUndoAfterContentModelChange() {
+		$name = 'Help:' . __FUNCTION__;
+		$uploader = self::$users['uploader']->getUser();
+		$sysop = self::$users['sysop']->getUser();
+		$apiResult = $this->doApiRequestWithToken( [
+			'action' => 'edit',
+			'title' => $name,
+			'text' => 'some text',
+		], null, $sysop )[0];
+
+		// Check success
+		$this->assertArrayHasKey( 'edit', $apiResult );
+		$this->assertArrayHasKey( 'result', $apiResult['edit'] );
+		$this->assertEquals( 'Success', $apiResult['edit']['result'] );
+		$this->assertArrayHasKey( 'contentmodel', $apiResult['edit'] );
+		// Content model is wikitext
+		$this->assertEquals( 'wikitext', $apiResult['edit']['contentmodel'] );
+
+		// Convert the page to JSON
+		$apiResult = $this->doApiRequestWithToken( [
+			'action' => 'edit',
+			'title' => $name,
+			'text' => '{}',
+			'contentmodel' => 'json',
+		], null, $uploader )[0];
+
+		// Check success
+		$this->assertArrayHasKey( 'edit', $apiResult );
+		$this->assertArrayHasKey( 'result', $apiResult['edit'] );
+		$this->assertEquals( 'Success', $apiResult['edit']['result'] );
+		$this->assertArrayHasKey( 'contentmodel', $apiResult['edit'] );
+		$this->assertEquals( 'json', $apiResult['edit']['contentmodel'] );
+
+		$apiResult = $this->doApiRequestWithToken( [
+			'action' => 'edit',
+			'title' => $name,
+			'undo' => $apiResult['edit']['newrevid']
+		], null, $sysop )[0];
+
+		// Check success
+		$this->assertArrayHasKey( 'edit', $apiResult );
+		$this->assertArrayHasKey( 'result', $apiResult['edit'] );
+		$this->assertEquals( 'Success', $apiResult['edit']['result'] );
+		$this->assertArrayHasKey( 'contentmodel', $apiResult['edit'] );
+		// Check that the contentmodel is back to wikitext now.
+		$this->assertEquals( 'wikitext', $apiResult['edit']['contentmodel'] );
 	}
 }

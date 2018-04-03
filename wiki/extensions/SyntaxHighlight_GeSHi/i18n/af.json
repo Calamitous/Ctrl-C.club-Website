@@ -3,11 +3,17 @@
 		"authors": [
 			"Naudefj",
 			"SPQRobin",
-			"පසිඳු කාවින්ද"
+			"පසිඳු කාවින්ද",
+			"Oesjaar",
+			"Fwolff"
 		]
 	},
-	"syntaxhighlight-specify": "U moet 'n taal as volg spesifiseer:",
-	"syntaxhighlight-supported": "Ondersteunde tale vir accentuering:",
-	"syntaxhighlight-err-loading": "(fout met die laai van die lys van ondersteunde tale)",
-	"syntaxhighlight-err-language": "Ongeldige taal."
+	"syntaxhighlight-error-category": "Bladsye met foute in sinktaksverligting",
+	"syntaxhighlight-error-category-desc": "Daar was 'n fout met verligting van kode wat op die bladsy ingesluit is.",
+	"syntaxhighlight-visualeditor-mwsyntaxhighlightinspector-code": "Kode",
+	"syntaxhighlight-visualeditor-mwsyntaxhighlightinspector-language": "Taal",
+	"syntaxhighlight-visualeditor-mwsyntaxhighlightinspector-none": "(Geen)",
+	"syntaxhighlight-visualeditor-mwsyntaxhighlightinspector-showlines": "Wys lynnommers",
+	"syntaxhighlight-visualeditor-mwsyntaxhighlightinspector-title": "Kodeblok",
+	"syntaxhighlight-error-unknown-language": "Onbekende taal  \"$1\""
 }

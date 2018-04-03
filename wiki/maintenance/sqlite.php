@@ -31,7 +31,7 @@ require_once __DIR__ . '/Maintenance.php';
 class SqliteMaintenance extends Maintenance {
 	public function __construct() {
 		parent::__construct();
-		$this->mDescription = "Performs some operations specific to SQLite database backend";
+		$this->addDescription( 'Performs some operations specific to SQLite database backend' );
 		$this->addOption(
 			'vacuum',
 			'Clean up database by removing deleted pages. Decreases database file size'
@@ -59,7 +59,7 @@ class SqliteMaintenance extends Maintenance {
 			return;
 		}
 
-		$this->db = wfGetDB( DB_MASTER );
+		$this->db = $this->getDB( DB_MASTER );
 
 		if ( $this->db->getType() != 'sqlite' ) {
 			$this->error( "This maintenance script requires a SQLite database.\n" );
@@ -117,22 +117,22 @@ class SqliteMaintenance extends Maintenance {
 		$this->db->query( 'BEGIN IMMEDIATE TRANSACTION', __METHOD__ );
 		$ourFile = $this->db->getDbFilePath();
 		$this->output( "   Copying database file $ourFile to $fileName... " );
-		wfSuppressWarnings( false );
+		MediaWiki\suppressWarnings( false );
 		if ( !copy( $ourFile, $fileName ) ) {
 			$err = error_get_last();
 			$this->error( "      {$err['message']}" );
 		}
-		wfSuppressWarnings( true );
+		MediaWiki\suppressWarnings( true );
 		$this->output( "   Releasing lock...\n" );
 		$this->db->query( 'COMMIT TRANSACTION', __METHOD__ );
 	}
 
 	private function checkSyntax() {
-		if ( !Sqlite::IsPresent() ) {
+		if ( !Sqlite::isPresent() ) {
 			$this->error( "Error: SQLite support not found\n" );
 		}
-		$files = array( $this->getOption( 'check-syntax' ) );
-		$files += $this->mArgs;
+		$files = [ $this->getOption( 'check-syntax' ) ];
+		$files = array_merge( $files, $this->mArgs );
 		$result = Sqlite::checkSqlSyntax( $files );
 		if ( $result === true ) {
 			$this->output( "SQL syntax check: no errors detected.\n" );

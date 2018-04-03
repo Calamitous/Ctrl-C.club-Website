@@ -37,30 +37,21 @@ class ParserFunctionsHooks {
 
 		// String Functions
 		if ( $wgPFEnableStringFunctions ) {
-			$parser->setFunctionHook( 'len',       'ExtParserFunctions::runLen'       );
-			$parser->setFunctionHook( 'pos',       'ExtParserFunctions::runPos'       );
-			$parser->setFunctionHook( 'rpos',      'ExtParserFunctions::runRPos'      );
-			$parser->setFunctionHook( 'sub',       'ExtParserFunctions::runSub'       );
-			$parser->setFunctionHook( 'count',     'ExtParserFunctions::runCount'     );
-			$parser->setFunctionHook( 'replace',   'ExtParserFunctions::runReplace'   );
-			$parser->setFunctionHook( 'explode',   'ExtParserFunctions::runExplode'   );
+			$parser->setFunctionHook( 'len',       'ExtParserFunctions::runLen' );
+			$parser->setFunctionHook( 'pos',       'ExtParserFunctions::runPos' );
+			$parser->setFunctionHook( 'rpos',      'ExtParserFunctions::runRPos' );
+			$parser->setFunctionHook( 'sub',       'ExtParserFunctions::runSub' );
+			$parser->setFunctionHook( 'count',     'ExtParserFunctions::runCount' );
+			$parser->setFunctionHook( 'replace',   'ExtParserFunctions::runReplace' );
+			$parser->setFunctionHook( 'explode',   'ExtParserFunctions::runExplode' );
 			$parser->setFunctionHook( 'urldecode', 'ExtParserFunctions::runUrlDecode' );
 		}
 
 		return true;
 	}
 
-	/**
-	 * @param $files array
-	 * @return bool
-	 */
-	public static function onUnitTestsList( &$files ) {
-		$files[] = __DIR__ . '/tests/ExpressionTest.php';
-		return true;
-	}
-
 	public static function onScribuntoExternalLibraries( $engine, array &$extraLibraries ) {
-		if ( $engine == 'lua' ) {
+		if ( $engine === 'lua' ) {
 			$extraLibraries['mw.ext.ParserFunctions'] = 'Scribunto_LuaParserFunctionsLibrary';
 		}
 		return true;

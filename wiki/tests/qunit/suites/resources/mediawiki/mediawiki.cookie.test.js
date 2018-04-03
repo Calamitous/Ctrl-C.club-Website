@@ -20,7 +20,7 @@
 		}
 	} ) );
 
-	QUnit.test( 'set( key, value )', 7, function ( assert ) {
+	QUnit.test( 'set( key, value )', function ( assert ) {
 		var call;
 
 		// Simple case
@@ -53,7 +53,7 @@
 		assert.strictEqual( call[ 1 ], '0', '0 is value' );
 	} );
 
-	QUnit.test( 'set( key, value, expires )', 6, function ( assert ) {
+	QUnit.test( 'set( key, value, expires )', function ( assert ) {
 		var date, options;
 
 		date = new Date();
@@ -91,7 +91,7 @@
 		assert.strictEqual( options.expires, date, 'custom expiration (with wgCookieExpiration=0)' );
 	} );
 
-	QUnit.test( 'set( key, value, options )', 4, function ( assert ) {
+	QUnit.test( 'set( key, value, options )', function ( assert ) {
 		var date, call;
 
 		mw.cookie.set( 'foo', 'bar', {
@@ -102,7 +102,7 @@
 		} );
 
 		call = $.cookie.lastCall.args;
-		assert.strictEqual( call[0], 'myPrefixfoo' );
+		assert.strictEqual( call[ 0 ], 'myPrefixfoo' );
 		assert.deepEqual( call[ 2 ], {
 			expires: expiryDate,
 			domain: 'myDomain',
@@ -122,7 +122,7 @@
 		} );
 
 		call = $.cookie.lastCall.args;
-		assert.strictEqual( call[0], 'myPrefixfoo' );
+		assert.strictEqual( call[ 0 ], 'myPrefixfoo' );
 		assert.deepEqual( call[ 2 ], {
 			expires: date,
 			domain: 'myDomain',
@@ -131,7 +131,7 @@
 		}, 'Options (incl. expires)' );
 	} );
 
-	QUnit.test( 'get( key ) - no values', 6, function ( assert ) {
+	QUnit.test( 'get( key ) - no values', function ( assert ) {
 		var key, value;
 
 		mw.cookie.get( 'foo' );
@@ -158,7 +158,7 @@
 		assert.strictEqual( value, 'bar', 'Custom default value' );
 	} );
 
-	QUnit.test( 'get( key ) - with value', 1, function ( assert ) {
+	QUnit.test( 'get( key ) - with value', function ( assert ) {
 		var value;
 
 		$.cookie.returns( 'bar' );
@@ -167,7 +167,7 @@
 		assert.strictEqual( value, 'bar', 'Return value of cookie' );
 	} );
 
-	QUnit.test( 'get( key, prefix )', 1, function ( assert ) {
+	QUnit.test( 'get( key, prefix )', function ( assert ) {
 		var key;
 
 		mw.cookie.get( 'foo', 'bar' );

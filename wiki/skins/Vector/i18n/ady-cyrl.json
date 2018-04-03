@@ -4,18 +4,24 @@
 			"Adamsa123",
 			"Amire80",
 			"Celekan",
-			"Siklawy"
+			"Siklawy",
+			"GR44 Luc",
+			"SamGamgee",
+			"SmartNart12",
+			"Inyzh",
+			"Highlander45temp"
 		]
 	},
-	"vector-action-addsection": "1офтхьабз",
-	"vector-action-delete": "ЛъэкӀ",
+	"vector-action-addsection": "Ӏофтхьабз",
+	"vector-action-delete": "ТегъэкӀ",
 	"vector-action-move": "Хьы",
 	"vector-action-protect": "Иухъумэ",
-	"vector-action-undelete": "Умылъэк1",
+	"vector-action-undelete": "УмылъэкӀ",
 	"vector-action-unprotect": "Умыухъумэ",
-	"vector-view-create": "Игъэхъу",
-	"vector-view-edit": "Гъэтэрэзыжь",
+	"vector-view-create": "КъэшӀ",
+	"vector-view-edit": "ХэӀэзыхь",
 	"vector-view-history": "Тарихъым eплъ",
 	"vector-view-view": "Едж",
-	"vector-view-viewsource": "Еплъ лъапсэм"
+	"vector-view-viewsource": "Еплъ лъапсэм",
+	"vector-more-actions": "Джыри"
 }

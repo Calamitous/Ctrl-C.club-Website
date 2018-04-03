@@ -1,13 +1,15 @@
 {
 	"@metadata": {
 		"authors": [
-			"Amir a57"
+			"Amir a57",
+			"Koroğlu",
+			"Alp Er Tunqa"
 		]
 	},
-	"renameuser": "ایستیفاده‌چی آدینی دییش",
+	"renameuser": "ایشلدن آدینی دییش",
 	"renameuser-linkoncontribs": "ایستیفاده‌چی آدینی دییش",
 	"renameuser-linkoncontribs-text": "بو ایستیفاده‌چی‌نین آدینی دییش",
-	"renameusernew": "یئنی ایستیفاده‌چی آدی:",
+	"renameusernew": "یئنی ایشلدن آدی:",
 	"renameuserreason": "ندن:",
 	"renameuserwarnings": "خبردارلیق‌لار:",
 	"renameuserconfirm": "بلی، ایستیفاده‌چی‌نین آدینی دییش",
@@ -18,7 +20,8 @@
 	"renameuser-page-exists": "$1 مادده‌سی اونسوز دا وار اولماقدا‌دیر، و آوتوماتیک اولا‌راق یئنی‌دن یازیلا بیلمز.",
 	"renameuser-page-moved": "$1 صحیفه‌سی $2 صحیفه‌سینه کؤچورولوب.",
 	"renameuser-page-unmoved": "$1 صحیفه‌سی $2 صحیفه‌سینه کؤچوروله بیلینمیر.",
-	"log-name-renameuser": "ایستیفاده‌چی آدی دییشمه گونده‌لیگی",
+	"log-name-renameuser": "ایشلدن آد دَییشدیرمه ژورنالی",
+	"log-description-renameuser": "بۇ ایشلدن‌لر آد دَییشدیرمه لیستی‌دیر.",
 	"action-renameuser": "ایستیفاده‌چی‌لرین آدینی دییش",
 	"right-renameuser": "ایستیفاده‌چی‌لرین آدینی دییش"
 }

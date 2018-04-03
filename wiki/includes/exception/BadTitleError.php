@@ -20,32 +20,30 @@
 
 /**
  * Show an error page on a badtitle.
- * Similar to ErrorPage, but emit a 400 HTTP error code to let mobile
- * browser it is not really a valid content.
+ *
+ * Uses BadRequestError to emit a 400 HTTP error code to ensure caching proxies and
+ * mobile browsers know not to cache it as valid content. (T35646)
  *
  * @since 1.19
  * @ingroup Exception
  */
-class BadTitleError extends ErrorPageError {
+class BadTitleError extends BadRequestError {
 	/**
-	 * @param string|Message $msg A message key (default: 'badtitletext')
+	 * @param string|Message|MalformedTitleException $msg A message key (default: 'badtitletext'), or
+	 *     a MalformedTitleException to figure out things from
 	 * @param array $params Parameter to wfMessage()
 	 */
-	public function __construct( $msg = 'badtitletext', $params = array() ) {
-		parent::__construct( 'badtitle', $msg, $params );
+	public function __construct( $msg = 'badtitletext', $params = [] ) {
+		if ( $msg instanceof MalformedTitleException ) {
+			$errorMessage = $msg->getErrorMessage();
+			if ( !$errorMessage ) {
+				parent::__construct( 'badtitle', 'badtitletext', [] );
+			} else {
+				$errorMessageParams = $msg->getErrorMessageParameters();
+				parent::__construct( 'badtitle', $errorMessage, $errorMessageParams );
+			}
+		} else {
+			parent::__construct( 'badtitle', $msg, $params );
+		}
 	}
-
-	/**
-	 * Just like ErrorPageError::report() but additionally set
-	 * a 400 HTTP status code (bug 33646).
-	 */
-	public function report() {
-		global $wgOut;
-
-		// bug 33646: a badtitle error page need to return an error code
-		// to let mobile browser now that it is not a normal page.
-		$wgOut->setStatusCode( 400 );
-		parent::report();
-	}
-
 }

@@ -19,8 +19,8 @@
  *
  * @file
  * @defgroup JobQueue JobQueue
- * @author Aaron Schulz
  */
+use MediaWiki\MediaWikiServices;
 
 /**
  * Class to handle enqueueing and running of background jobs
@@ -31,18 +31,16 @@
 abstract class JobQueue {
 	/** @var string Wiki ID */
 	protected $wiki;
-
 	/** @var string Job type */
 	protected $type;
-
 	/** @var string Job priority for pop() */
 	protected $order;
-
 	/** @var int Time to live in seconds */
 	protected $claimTTL;
-
 	/** @var int Maximum number of times to try a job */
 	protected $maxTries;
+	/** @var string|bool Read only rationale (or false if r/w) */
+	protected $readOnlyReason;
 
 	/** @var BagOStuff */
 	protected $dupCache;
@@ -73,7 +71,10 @@ abstract class JobQueue {
 		$this->dupCache = wfGetCache( CACHE_ANYTHING );
 		$this->aggr = isset( $params['aggregator'] )
 			? $params['aggregator']
-			: new JobQueueAggregatorNull( array() );
+			: new JobQueueAggregatorNull( [] );
+		$this->readOnlyReason = isset( $params['readOnlyReason'] )
+			? $params['readOnlyReason']
+			: false;
 	}
 
 	/**
@@ -94,8 +95,9 @@ abstract class JobQueue {
 	 *                  This might be useful for improving concurrency for job acquisition.
 	 *   - claimTTL   : If supported, the queue will recycle jobs that have been popped
 	 *                  but not acknowledged as completed after this many seconds. Recycling
-	 *                  of jobs simple means re-inserting them into the queue. Jobs can be
+	 *                  of jobs simply means re-inserting them into the queue. Jobs can be
 	 *                  attempted up to three times before being discarded.
+	 *   - readOnlyReason : Set this to a string to make the queue read-only.
 	 *
 	 * Queue classes should throw an exception if they do not support the options given.
 	 *
@@ -166,6 +168,14 @@ abstract class JobQueue {
 	 */
 	final public function delayedJobsEnabled() {
 		return $this->supportsDelayedJobs();
+	}
+
+	/**
+	 * @return string|bool Read-only rational or false if r/w
+	 * @since 1.27
+	 */
+	public function getReadOnlyReason() {
+		return $this->readOnlyReason;
 	}
 
 	/**
@@ -286,13 +296,13 @@ abstract class JobQueue {
 	 * This does not require $wgJobClasses to be set for the given job type.
 	 * Outside callers should use JobQueueGroup::push() instead of this function.
 	 *
-	 * @param Job|array $jobs A single job or an array of Jobs
+	 * @param IJobSpecification|IJobSpecification[] $jobs
 	 * @param int $flags Bitfield (supports JobQueue::QOS_ATOMIC)
 	 * @return void
 	 * @throws JobQueueError
 	 */
 	final public function push( $jobs, $flags = 0 ) {
-		$jobs = is_array( $jobs ) ? $jobs : array( $jobs );
+		$jobs = is_array( $jobs ) ? $jobs : [ $jobs ];
 		$this->batchPush( $jobs, $flags );
 	}
 
@@ -301,12 +311,14 @@ abstract class JobQueue {
 	 * This does not require $wgJobClasses to be set for the given job type.
 	 * Outside callers should use JobQueueGroup::push() instead of this function.
 	 *
-	 * @param array $jobs List of Jobs
+	 * @param IJobSpecification[] $jobs
 	 * @param int $flags Bitfield (supports JobQueue::QOS_ATOMIC)
 	 * @return void
 	 * @throws MWException
 	 */
 	final public function batchPush( array $jobs, $flags = 0 ) {
+		$this->assertNotReadOnly();
+
 		if ( !count( $jobs ) ) {
 			return; // nothing to do
 		}
@@ -323,11 +335,17 @@ abstract class JobQueue {
 
 		$this->doBatchPush( $jobs, $flags );
 		$this->aggr->notifyQueueNonEmpty( $this->wiki, $this->type );
+
+		foreach ( $jobs as $job ) {
+			if ( $job->isRootJob() ) {
+				$this->deduplicateRootJob( $job );
+			}
+		}
 	}
 
 	/**
 	 * @see JobQueue::batchPush()
-	 * @param array $jobs
+	 * @param IJobSpecification[] $jobs
 	 * @param int $flags
 	 */
 	abstract protected function doBatchPush( array $jobs, $flags );
@@ -343,6 +361,7 @@ abstract class JobQueue {
 	final public function pop() {
 		global $wgJobClasses;
 
+		$this->assertNotReadOnly();
 		if ( $this->wiki !== wfWikiID() ) {
 			throw new MWException( "Cannot pop '{$this->type}' job off foreign wiki queue." );
 		} elseif ( !isset( $wgJobClasses[$this->type] ) ) {
@@ -359,7 +378,7 @@ abstract class JobQueue {
 		// Flag this job as an old duplicate based on its "root" job...
 		try {
 			if ( $job && $this->isRootJobOldDuplicate( $job ) ) {
-				JobQueue::incrStats( 'job-pop-duplicate', $this->type, 1, $this->wiki );
+				self::incrStats( 'dupe_pops', $this->type );
 				$job = DuplicateJob::newFromJob( $job ); // convert to a no-op
 			}
 		} catch ( Exception $e ) {
@@ -371,7 +390,7 @@ abstract class JobQueue {
 
 	/**
 	 * @see JobQueue::pop()
-	 * @return Job
+	 * @return Job|bool
 	 */
 	abstract protected function doPop();
 
@@ -386,9 +405,11 @@ abstract class JobQueue {
 	 * @throws MWException
 	 */
 	final public function ack( Job $job ) {
+		$this->assertNotReadOnly();
 		if ( $job->getType() !== $this->type ) {
 			throw new MWException( "Got '{$job->getType()}' job; expected '{$this->type}'." );
 		}
+
 		$this->doAck( $job );
 	}
 
@@ -425,26 +446,26 @@ abstract class JobQueue {
 	 *
 	 * This does nothing for certain queue classes.
 	 *
-	 * @param Job $job
+	 * @param IJobSpecification $job
 	 * @throws MWException
 	 * @return bool
 	 */
-	final public function deduplicateRootJob( Job $job ) {
+	final public function deduplicateRootJob( IJobSpecification $job ) {
+		$this->assertNotReadOnly();
 		if ( $job->getType() !== $this->type ) {
 			throw new MWException( "Got '{$job->getType()}' job; expected '{$this->type}'." );
 		}
-		$ok = $this->doDeduplicateRootJob( $job );
 
-		return $ok;
+		return $this->doDeduplicateRootJob( $job );
 	}
 
 	/**
 	 * @see JobQueue::deduplicateRootJob()
-	 * @param Job $job
+	 * @param IJobSpecification $job
 	 * @throws MWException
 	 * @return bool
 	 */
-	protected function doDeduplicateRootJob( Job $job ) {
+	protected function doDeduplicateRootJob( IJobSpecification $job ) {
 		if ( !$job->hasRootJobParams() ) {
 			throw new MWException( "Cannot register root job; missing parameters." );
 		}
@@ -518,6 +539,8 @@ abstract class JobQueue {
 	 * @return void
 	 */
 	final public function delete() {
+		$this->assertNotReadOnly();
+
 		$this->doDelete();
 	}
 
@@ -530,7 +553,7 @@ abstract class JobQueue {
 	}
 
 	/**
-	 * Wait for any slaves or backup servers to catch up.
+	 * Wait for any replica DBs or backup servers to catch up.
 	 *
 	 * This does nothing for certain queue classes.
 	 *
@@ -546,35 +569,6 @@ abstract class JobQueue {
 	 * @return void
 	 */
 	protected function doWaitForBackups() {
-	}
-
-	/**
-	 * Return a map of task names to task definition maps.
-	 * A "task" is a fast periodic queue maintenance action.
-	 * Mutually exclusive tasks must implement their own locking in the callback.
-	 *
-	 * Each task value is an associative array with:
-	 *   - name     : the name of the task
-	 *   - callback : a PHP callable that performs the task
-	 *   - period   : the period in seconds corresponding to the task frequency
-	 *
-	 * @return array
-	 */
-	final public function getPeriodicTasks() {
-		$tasks = $this->doGetPeriodicTasks();
-		foreach ( $tasks as $name => &$def ) {
-			$def['name'] = $name;
-		}
-
-		return $tasks;
-	}
-
-	/**
-	 * @see JobQueue::getPeriodicTasks()
-	 * @return array
-	 */
-	protected function doGetPeriodicTasks() {
-		return array();
 	}
 
 	/**
@@ -612,7 +606,21 @@ abstract class JobQueue {
 	 * @since 1.22
 	 */
 	public function getAllDelayedJobs() {
-		return new ArrayIterator( array() ); // not implemented
+		return new ArrayIterator( [] ); // not implemented
+	}
+
+	/**
+	 * Get an iterator to traverse over all claimed jobs in this queue
+	 *
+	 * Callers should be quick to iterator over it or few results
+	 * will be returned due to jobs being acknowledged and deleted
+	 *
+	 * @return Iterator
+	 * @throws JobQueueError
+	 * @since 1.26
+	 */
+	public function getAllAcquiredJobs() {
+		return new ArrayIterator( [] ); // not implemented
 	}
 
 	/**
@@ -623,7 +631,7 @@ abstract class JobQueue {
 	 * @since 1.25
 	 */
 	public function getAllAbandonedJobs() {
-		return new ArrayIterator( array() ); // not implemented
+		return new ArrayIterator( [] ); // not implemented
 	}
 
 	/**
@@ -646,7 +654,6 @@ abstract class JobQueue {
 	 * @since 1.22
 	 */
 	final public function getSiblingQueuesWithJobs( array $types ) {
-
 		return $this->doGetSiblingQueuesWithJobs( $types );
 	}
 
@@ -670,7 +677,6 @@ abstract class JobQueue {
 	 * @since 1.22
 	 */
 	final public function getSiblingQueueSizes( array $types ) {
-
 		return $this->doGetSiblingQueueSizes( $types );
 	}
 
@@ -684,31 +690,29 @@ abstract class JobQueue {
 	}
 
 	/**
+	 * @throws JobQueueReadOnlyError
+	 */
+	protected function assertNotReadOnly() {
+		if ( $this->readOnlyReason !== false ) {
+			throw new JobQueueReadOnlyError( "Job queue is read-only: {$this->readOnlyReason}" );
+		}
+	}
+
+	/**
 	 * Call wfIncrStats() for the queue overall and for the queue type
 	 *
 	 * @param string $key Event type
 	 * @param string $type Job type
 	 * @param int $delta
-	 * @param string $wiki Wiki ID (added in 1.23)
 	 * @since 1.22
 	 */
-	public static function incrStats( $key, $type, $delta = 1, $wiki = null ) {
-		wfIncrStats( $key, $delta );
-		wfIncrStats( "{$key}-{$type}", $delta );
-		if ( $wiki !== null ) {
-			wfIncrStats( "{$key}-{$type}-{$wiki}", $delta );
+	public static function incrStats( $key, $type, $delta = 1 ) {
+		static $stats;
+		if ( !$stats ) {
+			$stats = MediaWikiServices::getInstance()->getStatsdDataFactory();
 		}
-	}
-
-	/**
-	 * Namespace the queue with a key to isolate it for testing
-	 *
-	 * @param string $key
-	 * @return void
-	 * @throws MWException
-	 */
-	public function setTestingPrefix( $key ) {
-		throw new MWException( "Queue namespacing not supported for this queue type." );
+		$stats->updateCount( "jobqueue.{$key}.all", $delta );
+		$stats->updateCount( "jobqueue.{$key}.{$type}", $delta );
 	}
 }
 
@@ -720,4 +724,8 @@ class JobQueueError extends MWException {
 }
 
 class JobQueueConnectionError extends JobQueueError {
+}
+
+class JobQueueReadOnlyError extends JobQueueError {
+
 }

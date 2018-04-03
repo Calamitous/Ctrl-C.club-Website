@@ -10,10 +10,10 @@
 
 $fallback = 'ru';
 
-$namespaceNames = array(
+$namespaceNames = [
 	NS_MEDIA            => 'Медиа',
 	NS_SPECIAL          => 'Ятарлă',
-	NS_TALK             => 'Сӳтсе явасси',
+	NS_TALK             => 'Сӳтсе_явасси',
 	NS_USER             => 'Хутшăнакан',
 	NS_USER_TALK        => 'Хутшăнаканăн_канашлу_страници',
 	NS_PROJECT_TALK     => '$1_сӳтсе_явмалли',
@@ -27,12 +27,11 @@ $namespaceNames = array(
 	NS_HELP_TALK        => 'Пулăшăва_сӳтсе_явмалли',
 	NS_CATEGORY         => 'Категори',
 	NS_CATEGORY_TALK    => 'Категорине_сӳтсе_явмалли',
-);
+];
 
 // Remove Russian aliases
-$namespaceGenderAliases = array();
+$namespaceGenderAliases = [];
 
 $linkPrefixExtension = true;
 $linkTrail = '/^([a-zа-яĕçăӳ"»]+)(.*)$/sDu';
 $linkPrefixCharset = 'a-zA-Z"\\x{80}-\\x{10ffff}';
-

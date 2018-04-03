@@ -36,10 +36,7 @@ class ApiQueryTitleBlacklist extends ApiBase {
 	public function execute() {
 		$params = $this->extractRequestParams();
 		$action = $params['action'];
-		$override = true;
-		if( isset( $params['nooverride'] ) ) {
-			$override = false;
-		}
+		$override = !$params['nooverride'];
 
 		// createtalk and createpage are useless as they're treated exactly like create
 		if ( $action === 'createpage' || $action === 'createtalk' ) {
@@ -48,16 +45,24 @@ class ApiQueryTitleBlacklist extends ApiBase {
 
 		$title = Title::newFromText( $params['title'] );
 		if ( !$title ) {
-			$this->dieUsageMsg( array( 'invalidtitle', $params['title'] ) );
+			if ( is_callable( [ $this, 'dieWithError' ] ) ) {
+				$this->dieWithError(
+					[ 'apierror-invalidtitle', wfEscapeWikiText( $params['title'] ) ]
+				);
+			} else {
+				$this->dieUsageMsg( [ 'invalidtitle', $params['title'] ] );
+			}
 		}
 
-		$blacklisted = TitleBlacklist::singleton()->userCannot( $title, $this->getUser(), $action, $override );
+		$blacklisted = TitleBlacklist::singleton()->userCannot(
+			$title, $this->getUser(), $action, $override
+		);
 		if ( $blacklisted instanceof TitleBlacklistEntry ) {
 			// this title is blacklisted.
-			$result = array(
+			$result = [
 				htmlspecialchars( $blacklisted->getRaw() ),
 				htmlspecialchars( $params['title'] ),
-			);
+			];
 
 			$res = $this->getResult();
 			$res->addValue( 'titleblacklist', 'result', 'blacklisted' );
@@ -73,60 +78,34 @@ class ApiQueryTitleBlacklist extends ApiBase {
 	}
 
 	public function getAllowedParams() {
-		return array(
-			'title' => array(
+		return [
+			'title' => [
 				ApiBase::PARAM_REQUIRED => true,
-			),
-			'action' => array(
+			],
+			'action' => [
 				ApiBase::PARAM_DFLT => 'edit',
 				ApiBase::PARAM_ISMULTI => false,
-				ApiBase::PARAM_TYPE => array(
+				ApiBase::PARAM_TYPE => [
 					// createtalk and createpage are useless as they're treated exactly like create
 					'create', 'edit', 'upload', 'createtalk', 'createpage', 'move', 'new-account'
-				),
-			),
-			'nooverride' => array(
-			)
-		);
-	}
-
-	/**
-	 * @deprecated since MediaWiki core 1.25
-	 */
-	public function getParamDescription() {
-		return array(
-			'title' => 'The string to validate against the blacklist',
-			'nooverride' => 'Don\'t try to override the titleblacklist',
-			'action' => 'The thing you\'re trying to do',
-		);
-	}
-
-	/**
-	 * @deprecated since MediaWiki core 1.25
-	 */
-	public function getDescription() {
-		return 'Validate an article title, filename, or username against the TitleBlacklist.';
-	}
-
-	/**
-	 * @deprecated since MediaWiki core 1.25
-	 */
-	public function getExamples() {
-		return array(
-			'api.php?action=titleblacklist&tbtitle=Foo',
-			'api.php?action=titleblacklist&tbtitle=Bar&tbaction=edit',
-		);
+				],
+			],
+			'nooverride' => [
+				ApiBase::PARAM_DFLT => false,
+			]
+		];
 	}
 
 	/**
 	 * @see ApiBase::getExamplesMessages()
+	 * @return array
 	 */
 	protected function getExamplesMessages() {
-		return array(
+		return [
 			'action=titleblacklist&tbtitle=Foo'
 				=> 'apihelp-titleblacklist-example-1',
 			'action=titleblacklist&tbtitle=Bar&tbaction=edit'
 				=> 'apihelp-titleblacklist-example-2',
-		);
+		];
 	}
 }

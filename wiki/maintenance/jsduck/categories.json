@@ -6,7 +6,6 @@
 				"name": "Base",
 				"classes": [
 					"mw",
-					"mw.Map",
 					"mw.Message",
 					"mw.loader",
 					"mw.loader.store",
@@ -23,13 +22,19 @@
 				"classes": [
 					"mw.Title",
 					"mw.Uri",
+					"mw.RegExp",
 					"mw.messagePoster.*",
 					"mw.notification",
 					"mw.Notification_",
+					"mw.storage",
+					"mw.storage.session",
 					"mw.user",
 					"mw.util",
 					"mw.plugin.*",
-					"mw.cookie"
+					"mw.cookie",
+					"mw.experiments",
+					"mw.viewport",
+					"mw.htmlform.*"
 				]
 			},
 			{
@@ -38,7 +43,7 @@
 			},
 			{
 				"name": "API",
-				"classes": ["mw.Api*"]
+				"classes": ["mw.Api*", "mw.ForeignApi*"]
 			},
 			{
 				"name": "Language",
@@ -57,8 +62,18 @@
 			{
 				"name": "Interfaces",
 				"classes": [
-					"mw.Feedback",
-					"mw.Feedback.Dialog"
+					"mw.Feedback*",
+					"mw.Upload*",
+					"mw.ForeignUpload",
+					"mw.ForeignStructuredUpload*",
+					"mw.GallerySlideshow",
+					"mw.rcfilters*"
+				]
+			},
+			{
+				"name": "Widgets",
+				"classes": [
+					"mw.widgets*"
 				]
 			},
 			{
@@ -95,8 +110,22 @@
 		"name": "Upstream",
 		"groups": [
 			{
-				"name": "OOJS",
-				"classes": ["OO", "OO.*"]
+				"name": "OOjs",
+				"classes": [
+					"OO",
+					"OO.EmitterList",
+					"OO.EventEmitter",
+					"OO.Factory",
+					"OO.Registry",
+					"OO.SortedEmitterList"
+				]
+			},
+			{
+				"name": "OOUI",
+				"classes": [
+					"OO.ui",
+					"OO.ui.*"
+				]
 			},
 			{
 				"name": "jQuery",

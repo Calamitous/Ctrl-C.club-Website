@@ -35,13 +35,23 @@
  */
 abstract class VirtualRESTService {
 	/** @var array Key/value map */
-	protected $params = array();
+	protected $params = [];
 
 	/**
 	 * @param array $params Key/value map
 	 */
 	public function __construct( array $params ) {
 		$this->params = $params;
+	}
+
+	/**
+	 * Return the name of this service, in a form suitable for error
+	 * reporting or debugging.
+	 *
+	 * @return string The name of the service behind this VRS object.
+	 */
+	public function getName() {
+		return isset( $this->params['name'] ) ? $this->params['name'] : static::class;
 	}
 
 	/**
@@ -67,7 +77,7 @@ abstract class VirtualRESTService {
 	 * @return array Modified HTTP request array map
 	 */
 	public function onRequests( array $reqs, Closure $idGeneratorFunc ) {
-		$result = array();
+		$result = [];
 		foreach ( $reqs as $key => $req ) {
 			// The default encoding treats the URL as a REST style path that uses
 			// forward slash as a hierarchical delimiter (and never otherwise).
@@ -84,8 +94,8 @@ abstract class VirtualRESTService {
 	 *
 	 * This method may mangle any of the $reqs entry 'response' fields as needed:
 	 *   - code    : perform any code normalization [as needed]
- 	 *   - reason  : perform any reason normalization [as needed]
- 	 *   - headers : perform any header normalization [as needed]
+	 *   - reason  : perform any reason normalization [as needed]
+	 *   - headers : perform any header normalization [as needed]
 	 *
 	 * This method can also remove some of the requests as well as add new ones
 	 * (using $idGenerator to set each of the entries' array keys). For any existing

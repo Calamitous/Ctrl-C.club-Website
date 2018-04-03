@@ -50,7 +50,11 @@
  * @class mw.Uri
  */
 
+/* eslint-disable no-use-before-define */
+
 ( function ( mw, $ ) {
+	var parser, properties;
+
 	/**
 	 * Function that's useful when constructing the URI string -- we frequently encounter the pattern
 	 * of having to add something to the URI as we go, but only if it's present, and to include a
@@ -68,20 +72,25 @@
 		if ( val === undefined || val === null || val === '' ) {
 			return '';
 		}
+
 		return pre + ( raw ? val : mw.Uri.encode( val ) ) + post;
 	}
 
 	/**
 	 * Regular expressions to parse many common URIs.
 	 *
+	 * As they are gnarly, they have been moved to separate files to allow us to format them in the
+	 * 'extended' regular expression format (which JavaScript normally doesn't support). The subset of
+	 * features handled is minimal, but just the free whitespace gives us a lot.
+	 *
 	 * @private
 	 * @static
 	 * @property {Object} parser
 	 */
-	var parser = {
-		strict: /^(?:([^:\/?#]+):)?(?:\/\/(?:(?:([^:@\/?#]*)(?::([^:@\/?#]*))?)?@)?([^:\/?#]*)(?::(\d*))?)?((?:[^?#\/]*\/)*[^?#]*)(?:\?([^#]*))?(?:#(.*))?/,
-		loose:  /^(?:(?![^:@]+:[^:@\/]*@)([^:\/?#.]+):)?(?:\/\/)?(?:(?:([^:@\/?#]*)(?::([^:@\/?#]*))?)?@)?([^:\/?#]*)(?::(\d*))?((?:\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?[^?#\/]*)(?:\?([^#]*))?(?:#(.*))?/
-	},
+	parser = {
+		strict: mw.template.get( 'mediawiki.Uri', 'strict.regexp' ).render(),
+		loose: mw.template.get( 'mediawiki.Uri', 'loose.regexp' ).render()
+	};
 
 	/**
 	 * The order here matches the order of captured matches in the `parser` property regexes.
@@ -134,6 +143,7 @@
 	 * @param {string|Function} documentLocation A full url, or function returning one.
 	 *  If passed a function, the return value may change over time and this will be honoured. (T74334)
 	 * @member mw
+	 * @return {Function} Uri class
 	 */
 	mw.UriRelative = function ( documentLocation ) {
 		var getDefaultUri = ( function () {
@@ -152,12 +162,11 @@
 		}() );
 
 		/**
-		 * @class mw.Uri
-		 * @constructor
-		 *
 		 * Construct a new URI object. Throws error if arguments are illegal/impossible, or
 		 * otherwise don't parse.
 		 *
+		 * @class mw.Uri
+		 * @constructor
 		 * @param {Object|string} [uri] URI string, or an Object with appropriate properties (especially
 		 *  another URI object to clone). Object must have non-blank `protocol`, `host`, and `path`
 		 *  properties. If omitted (or set to `undefined`, `null` or empty string), then an object
@@ -170,7 +179,8 @@
 		 *  override each other (`true`) or automagically convert them to an array (`false`).
 		 */
 		function Uri( uri, options ) {
-			var prop,
+			var prop, hrefCur,
+				hasOptions = ( options !== undefined ),
 				defaultUri = getDefaultUri();
 
 			options = typeof options === 'object' ? options : { strictMode: !!options };
@@ -188,10 +198,10 @@
 						// Only copy direct properties, not inherited ones
 						if ( uri.hasOwnProperty( prop ) ) {
 							// Deep copy object properties
-							if ( $.isArray( uri[prop] ) || $.isPlainObject( uri[prop] ) ) {
-								this[prop] = $.extend( true, {}, uri[prop] );
+							if ( Array.isArray( uri[ prop ] ) || $.isPlainObject( uri[ prop ] ) ) {
+								this[ prop ] = $.extend( true, {}, uri[ prop ] );
 							} else {
-								this[prop] = uri[prop];
+								this[ prop ] = uri[ prop ];
 							}
 						}
 					}
@@ -199,8 +209,12 @@
 						this.query = {};
 					}
 				}
+			} else if ( hasOptions ) {
+				// We didn't get a URI in the constructor, but we got options.
+				hrefCur = typeof documentLocation === 'string' ? documentLocation : documentLocation();
+				this.parse( hrefCur, options );
 			} else {
-				// If we didn't get a URI in the constructor, use the default one.
+				// We didn't get a URI or options in the constructor, use the default instance.
 				return defaultUri.clone();
 			}
 
@@ -216,7 +230,7 @@
 					this.port = defaultUri.port;
 				}
 			}
-			if ( this.path && this.path.charAt( 0 ) !== '/' ) {
+			if ( this.path && this.path[ 0 ] !== '/' ) {
 				// A real relative URL, relative to defaultUri.path. We can't really handle that since we cannot
 				// figure out whether the last path component of defaultUri.path is a directory or a file.
 				throw new Error( 'Bad constructor arguments' );
@@ -269,7 +283,8 @@
 			 */
 			parse: function ( str, options ) {
 				var q, matches,
-					uri = this;
+					uri = this,
+					hasOwn = Object.prototype.hasOwnProperty;
 
 				// Apply parser regex and set all properties based on the result
 				matches = parser[ options.strictMode ? 'strict' : 'loose' ].exec( str );
@@ -291,7 +306,7 @@
 
 							// If overrideKeys, always (re)set top level value.
 							// If not overrideKeys but this key wasn't set before, then we set it as well.
-							if ( options.overrideKeys || q[ k ] === undefined ) {
+							if ( options.overrideKeys || !hasOwn.call( q, k ) ) {
 								q[ k ] = v;
 
 							// Use arrays if overrideKeys is false and key was already seen before
@@ -301,7 +316,7 @@
 									q[ k ] = [ q[ k ] ];
 								}
 								// Add to the array
-								if ( $.isArray( q[ k ] ) ) {
+								if ( Array.isArray( q[ k ] ) ) {
 									q[ k ].push( v );
 								}
 							}
@@ -351,7 +366,7 @@
 				var args = [];
 				$.each( this.query, function ( key, val ) {
 					var k = Uri.encode( key ),
-						vals = $.isArray( val ) ? val : [ val ];
+						vals = Array.isArray( val ) ? val : [ val ];
 					$.each( vals, function ( i, v ) {
 						if ( v === null ) {
 							args.push( k );

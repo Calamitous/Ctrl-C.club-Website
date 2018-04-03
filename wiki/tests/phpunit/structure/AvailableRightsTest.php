@@ -19,11 +19,11 @@ class AvailableRightsTest extends PHPUnit_Framework_TestCase {
 
 		$rights = User::getAllRights();
 
-		foreach( $wgGroupPermissions as $permissions ) {
+		foreach ( $wgGroupPermissions as $permissions ) {
 			$rights = array_merge( $rights, array_keys( $permissions ) );
 		}
 
-		foreach( $wgRevokePermissions as $permissions ) {
+		foreach ( $wgRevokePermissions as $permissions ) {
 			$rights = array_merge( $rights, array_keys( $permissions ) );
 		}
 
@@ -40,7 +40,7 @@ class AvailableRightsTest extends PHPUnit_Framework_TestCase {
 		);
 
 		$this->assertEquals(
-			array(),
+			[],
 			// Re-index to produce nicer output, keys are meaningless.
 			array_values( $missingRights ),
 			'Additional user rights need to be added to $wgAvailableRights or ' .

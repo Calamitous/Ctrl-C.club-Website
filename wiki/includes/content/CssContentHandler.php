@@ -33,10 +33,29 @@ class CssContentHandler extends CodeContentHandler {
 	 * @param string $modelId
 	 */
 	public function __construct( $modelId = CONTENT_MODEL_CSS ) {
-		parent::__construct( $modelId, array( CONTENT_FORMAT_CSS ) );
+		parent::__construct( $modelId, [ CONTENT_FORMAT_CSS ] );
 	}
 
 	protected function getContentClass() {
-		return 'CssContent';
+		return CssContent::class;
 	}
+
+	public function supportsRedirects() {
+		return true;
+	}
+
+	/**
+	 * Create a redirect that is also valid CSS
+	 *
+	 * @param Title $destination
+	 * @param string $text ignored
+	 * @return CssContent
+	 */
+	public function makeRedirectContent( Title $destination, $text = '' ) {
+		// The parameters are passed as a string so the / is not url-encoded by wfArrayToCgi
+		$url = $destination->getFullURL( 'action=raw&ctype=text/css', false, PROTO_RELATIVE );
+		$class = $this->getContentClass();
+		return new $class( '/* #REDIRECT */@import ' . CSSMin::buildUrlValue( $url ) . ';' );
+	}
+
 }

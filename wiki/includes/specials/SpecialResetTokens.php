@@ -25,12 +25,17 @@
  * Let users reset tokens like the watchlist token.
  *
  * @ingroup SpecialPage
+ * @deprecated since 1.26
  */
 class SpecialResetTokens extends FormSpecialPage {
 	private $tokensList;
 
 	public function __construct() {
 		parent::__construct( 'ResetTokens' );
+	}
+
+	public function doesWrites() {
+		return true;
 	}
 
 	/**
@@ -41,10 +46,10 @@ class SpecialResetTokens extends FormSpecialPage {
 	 */
 	protected function getTokensList() {
 		if ( !isset( $this->tokensList ) ) {
-			$tokens = array(
-				array( 'preference' => 'watchlisttoken', 'label-message' => 'resettokens-watchlist-token' ),
-			);
-			Hooks::run( 'SpecialResetTokensTokens', array( &$tokens ) );
+			$tokens = [
+				[ 'preference' => 'watchlisttoken', 'label-message' => 'resettokens-watchlist-token' ],
+			];
+			Hooks::run( 'SpecialResetTokensTokens', [ &$tokens ] );
 
 			$hiddenPrefs = $this->getConfig()->get( 'HiddenPrefs' );
 			$tokens = array_filter( $tokens, function ( $tok ) use ( $hiddenPrefs ) {
@@ -84,7 +89,7 @@ class SpecialResetTokens extends FormSpecialPage {
 		$tokens = $this->getTokensList();
 
 		if ( $tokens ) {
-			$tokensForForm = array();
+			$tokensForForm = [];
 			foreach ( $tokens as $tok ) {
 				$label = $this->msg( 'resettokens-token-label' )
 					->rawParams( $this->msg( $tok['label-message'] )->parse() )
@@ -93,21 +98,21 @@ class SpecialResetTokens extends FormSpecialPage {
 				$tokensForForm[$label] = $tok['preference'];
 			}
 
-			$desc = array(
+			$desc = [
 				'label-message' => 'resettokens-tokens',
 				'type' => 'multiselect',
 				'options' => $tokensForForm,
-			);
+			];
 		} else {
-			$desc = array(
+			$desc = [
 				'label-message' => 'resettokens-no-tokens',
 				'type' => 'info',
-			);
+			];
 		}
 
-		return array(
+		return [
 			'tokens' => $desc,
-		);
+		];
 	}
 
 	/**
@@ -121,6 +126,10 @@ class SpecialResetTokens extends FormSpecialPage {
 		} else {
 			$form->suppressDefaultSubmit();
 		}
+	}
+
+	protected function getDisplayFormat() {
+		return 'ooui';
 	}
 
 	public function onSubmit( array $formData ) {

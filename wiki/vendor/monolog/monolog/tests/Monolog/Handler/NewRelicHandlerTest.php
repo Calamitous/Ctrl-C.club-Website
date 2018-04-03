@@ -11,6 +11,7 @@
 
 namespace Monolog\Handler;
 
+use Monolog\Formatter\LineFormatter;
 use Monolog\TestCase;
 use Monolog\Logger;
 
@@ -104,6 +105,13 @@ class NewRelicHandlerTest extends TestCase
         $this->assertEquals($expected, self::$customParameters);
     }
 
+    public function testThehandlerCanHandleTheRecordsFormattedUsingTheLineFormatter()
+    {
+        $handler = new StubNewRelicHandler();
+        $handler->setFormatter(new LineFormatter());
+        $handler->handle($this->getRecord(Logger::ERROR));
+    }
+
     public function testTheAppNameIsNullByDefault()
     {
         $handler = new StubNewRelicHandler();
@@ -136,7 +144,7 @@ class NewRelicHandlerTest extends TestCase
         $this->assertEquals(null, self::$transactionName);
     }
 
-    public function testTheTransactionNameCanBeInjectedFromtheConstructor()
+    public function testTheTransactionNameCanBeInjectedFromTheConstructor()
     {
         $handler = new StubNewRelicHandler(Logger::DEBUG, false, null, false, 'myTransaction');
         $handler->handle($this->getRecord(Logger::ERROR, 'log message'));

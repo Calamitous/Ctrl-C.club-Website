@@ -1,6 +1,6 @@
 <?php
 /**
- * Resource loader module for default user preferences.
+ * ResourceLoader module for default user preferences.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,36 +26,23 @@
  */
 class ResourceLoaderUserDefaultsModule extends ResourceLoaderModule {
 
-	/* Protected Members */
-
-	protected $targets = array( 'desktop', 'mobile' );
-
-	/* Methods */
+	protected $targets = [ 'desktop', 'mobile' ];
 
 	/**
-	 * @param ResourceLoaderContext $context
-	 * @return string Hash
+	 * @return bool
 	 */
-	public function getModifiedHash( ResourceLoaderContext $context ) {
-		return md5( serialize( User::getDefaultOptions() ) );
+	public function enableModuleContentVersion() {
+		return true;
 	}
 
 	/**
 	 * @param ResourceLoaderContext $context
-	 * @return int
-	 */
-	public function getModifiedTime( ResourceLoaderContext $context ) {
-		return $this->getHashMtime( $context );
-	}
-
-	/**
-	 * @param ResourceLoaderContext $context
-	 * @return string
+	 * @return string JavaScript code
 	 */
 	public function getScript( ResourceLoaderContext $context ) {
 		return Xml::encodeJsCall(
 			'mw.user.options.set',
-			array( User::getDefaultOptions() ),
+			[ User::getDefaultOptions() ],
 			ResourceLoader::inDebugMode()
 		);
 	}

@@ -3,8 +3,8 @@
 		var $label, labelText;
 
 		function syncText() {
-			var value = $(this).val()
-				.replace( /[\[\]\{\}|#<>%+? ]/g, '_' )
+			var value = $( this ).val()
+				.replace( /[\[\]{}|#<>%+? ]/g, '_' ) // eslint-disable-line no-useless-escape
 				.replace( /&/, '&amp;' )
 				.replace( /__+/g, '_' )
 				.replace( /^_+/, '' )
@@ -14,22 +14,18 @@
 		}
 
 		// Set up the help system
-		$( '.mw-help-field-data' )
-			.hide()
-			.closest( '.mw-help-field-container' )
-				.find( '.mw-help-field-hint' )
-					.show()
-					.click( function () {
-						$(this)
-							.closest( '.mw-help-field-container' )
-								.find( '.mw-help-field-data' )
-									.slideToggle( 'fast' );
-					} );
+		$( '.config-help-field-data' ).hide()
+			.closest( '.config-help-field-container' ).find( '.config-help-field-hint' )
+			.show()
+			.click( function () {
+				$( this ).closest( '.config-help-field-container' ).find( '.config-help-field-data' )
+					.slideToggle( 'fast' );
+			} );
 
 		// Show/hide code for DB-specific options
 		// FIXME: Do we want slow, fast, or even non-animated (instantaneous) showing/hiding here?
 		$( '.dbRadio' ).each( function () {
-			$( document.getElementById( $(this).attr( 'rel' ) ) ).hide();
+			$( document.getElementById( $( this ).attr( 'rel' ) ) ).hide();
 		} );
 		$( document.getElementById( $( '.dbRadio:checked' ).attr( 'rel' ) ) ).show();
 		$( '.dbRadio' ).click( function () {
@@ -58,16 +54,16 @@
 
 		// Show/hide random stuff (email, upload)
 		$( '.showHideRadio' ).click( function () {
-			var $wrapper = $( '#' + $(this).attr( 'rel' ) );
-			if ( $(this).is( ':checked' ) ) {
+			var $wrapper = $( '#' + $( this ).attr( 'rel' ) );
+			if ( $( this ).is( ':checked' ) ) {
 				$wrapper.show( 'slow' );
 			} else {
 				$wrapper.hide( 'slow' );
 			}
 		} );
 		$( '.hideShowRadio' ).click( function () {
-			var $wrapper = $( '#' + $(this).attr( 'rel' ) );
-			if ( $(this).is( ':checked' ) ) {
+			var $wrapper = $( '#' + $( this ).attr( 'rel' ) );
+			if ( $( this ).is( ':checked' ) ) {
 				$wrapper.hide( 'slow' );
 			} else {
 				$wrapper.show( 'slow' );
@@ -80,9 +76,9 @@
 
 		// Enable/disable "other" textboxes
 		$( '.enableForOther' ).click( function () {
-			var $textbox = $( document.getElementById( $(this).attr( 'rel' ) ) );
+			var $textbox = $( document.getElementById( $( this ).attr( 'rel' ) ) );
 			// FIXME: Ugh, this is ugly
-			if ( $(this).val() === 'other' ) {
+			if ( $( this ).val() === 'other' ) {
 				$textbox.removeProp( 'readonly' ).closest( '.config-block' ).slideDown( 'fast' );
 			} else {
 				$textbox.prop( 'readonly', true ).closest( '.config-block' ).slideUp( 'fast' );
@@ -96,9 +92,9 @@
 		$( '#config_wgSitename' ).on( 'keyup change', syncText ).each( syncText );
 
 		// Show/Hide memcached servers when needed
-		$( 'input[name$="config_wgMainCacheType"]' ).change( function () {
+		$( 'input[name$="config__MainCacheType"]' ).change( function () {
 			var $memc = $( '#config-memcachewrapper' );
-			if ( $( 'input[name$="config_wgMainCacheType"]:checked' ).val() === 'memcached' ) {
+			if ( $( 'input[name$="config__MainCacheType"]:checked' ).val() === 'memcached' ) {
 				$memc.show( 'slow' );
 			} else {
 				$memc.hide( 'slow' );

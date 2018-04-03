@@ -11,13 +11,13 @@
 
 	function findDivergenceIndex( a, b ) {
 		var i = 0;
-		while ( i < a.length && i < b.length && a[i] === b[i] ) {
+		while ( i < a.length && i < b.length && a[ i ] === b[ i ] ) {
 			i++;
 		}
 		return i;
 	}
 
-	QUnit.test( 'Position right', 4, function ( assert ) {
+	QUnit.test( 'Position right', function ( assert ) {
 		// We need this thing to be visible, so append it to the DOM
 		var $span, spanText, d, spanTextNew,
 			origText = 'This is a really long random string and there is no way it fits in 100 pixels.',
@@ -41,7 +41,7 @@
 		// Add two characters using scary black magic
 		spanText = $span.text();
 		d = findDivergenceIndex( origText, spanText );
-		spanTextNew = spanText.slice( 0, d ) + origText[d] + origText[d] + '...';
+		spanTextNew = spanText.slice( 0, d ) + origText[ d ] + origText[ d ] + '...';
 
 		assert.gt( spanTextNew.length, spanText.length, 'Verify that the new span-length is indeed greater' );
 

@@ -1,4 +1,12 @@
 {
-	"@metadata": [],
-	"citethispage": "حواليو"
+	"@metadata": {
+		"authors": [
+			"Sindhu",
+			"Aursani",
+			"Mehtab ahmed"
+		]
+	},
+	"citethispage": "هيءُ صفحو حواليو",
+	"citethispage-link": "ھن صفحي جو حوالو ڏيو",
+	"tooltip-citethispage": "ھن صفحي جو حوالو ڪيئن ڏجي بابت معلومات"
 }

@@ -24,12 +24,10 @@
 /**
  * @ingroup Parser
  */
-class ParserDiffTest
-{
+class ParserDiffTest {
 	public $parsers;
 	public $conf;
 	public $shortOutput = false;
-	public $dtUniqPrefix;
 
 	public function __construct( $conf ) {
 		if ( !isset( $conf['parsers'] ) ) {
@@ -43,12 +41,6 @@ class ParserDiffTest
 			return;
 		}
 
-		global $wgHooks;
-		static $doneHook = false;
-		if ( !$doneHook ) {
-			$doneHook = true;
-			$wgHooks['ParserClearState'][] = array( $this, 'onClearState' );
-		}
 		if ( isset( $this->conf['shortOutput'] ) ) {
 			$this->shortOutput = $this->conf['shortOutput'];
 		}
@@ -56,7 +48,7 @@ class ParserDiffTest
 		foreach ( $this->conf['parsers'] as $i => $parserConf ) {
 			if ( !is_array( $parserConf ) ) {
 				$class = $parserConf;
-				$parserConf = array( 'class' => $parserConf );
+				$parserConf = [ 'class' => $parserConf ];
 			} else {
 				$class = $parserConf['class'];
 			}
@@ -66,12 +58,12 @@ class ParserDiffTest
 
 	public function __call( $name, $args ) {
 		$this->init();
-		$results = array();
+		$results = [];
 		$mismatch = false;
 		$lastResult = null;
 		$first = true;
 		foreach ( $this->parsers as $i => $parser ) {
-			$currentResult = call_user_func_array( array( &$this->parsers[$i], $name ), $args );
+			$currentResult = call_user_func_array( [ &$this->parsers[$i], $name ], $args );
 			if ( $first ) {
 				$first = false;
 			} else {
@@ -90,7 +82,7 @@ class ParserDiffTest
 		}
 		if ( $mismatch ) {
 			if ( count( $results ) == 2 ) {
-				$resultsList = array();
+				$resultsList = [];
 				foreach ( $this->parsers as $i => $parser ) {
 					$resultsList[] = var_export( $results[$i], true );
 				}
@@ -125,19 +117,5 @@ class ParserDiffTest
 		foreach ( $this->parsers as $parser ) {
 			$parser->setFunctionHook( $id, $callback, $flags );
 		}
-	}
-
-	/**
-	 * @param Parser $parser
-	 * @return bool
-	 */
-	public function onClearState( &$parser ) {
-		// hack marker prefixes to get identical output
-		if ( !isset( $this->dtUniqPrefix ) ) {
-			$this->dtUniqPrefix = $parser->uniqPrefix();
-		} else {
-			$parser->mUniqPrefix = $this->dtUniqPrefix;
-		}
-		return true;
 	}
 }

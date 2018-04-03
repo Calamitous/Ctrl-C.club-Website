@@ -31,11 +31,11 @@ require_once __DIR__ . '/Maintenance.php';
  * @ingroup Maintenance
  */
 class CreateAndPromote extends Maintenance {
-	private static $permitRoles = array( 'sysop', 'bureaucrat', 'bot' );
+	private static $permitRoles = [ 'sysop', 'bureaucrat', 'bot' ];
 
 	public function __construct() {
 		parent::__construct();
-		$this->mDescription = "Create a new user account and/or grant it additional rights";
+		$this->addDescription( 'Create a new user account and/or grant it additional rights' );
 		$this->addOption(
 			'force',
 			'If acccount exists already, just grant it rights or change password.'
@@ -43,6 +43,14 @@ class CreateAndPromote extends Maintenance {
 		foreach ( self::$permitRoles as $role ) {
 			$this->addOption( $role, "Add the account to the {$role} group" );
 		}
+
+		$this->addOption(
+			'custom-groups',
+			'Comma-separated list of groups to add the user to',
+			false,
+			true
+		);
+
 		$this->addArg( "username", "Username of new user" );
 		$this->addArg( "password", "Password to set (not required if --force is used)", false );
 	}
@@ -51,7 +59,7 @@ class CreateAndPromote extends Maintenance {
 		$username = $this->getArg( 0 );
 		$password = $this->getArg( 1 );
 		$force = $this->hasOption( 'force' );
-		$inGroups = array();
+		$inGroups = [];
 
 		$user = User::newFromName( $username );
 		if ( !is_object( $user ) ) {
@@ -69,8 +77,24 @@ class CreateAndPromote extends Maintenance {
 			$inGroups = $user->getGroups();
 		}
 
+		$groups = array_filter( self::$permitRoles, [ $this, 'hasOption' ] );
+		if ( $this->hasOption( 'custom-groups' ) ) {
+			$allGroups = array_flip( User::getAllGroups() );
+			$customGroupsText = $this->getOption( 'custom-groups' );
+			if ( $customGroupsText !== '' ) {
+				$customGroups = explode( ',', $customGroupsText );
+				foreach ( $customGroups as $customGroup ) {
+					if ( isset( $allGroups[$customGroup] ) ) {
+						$groups[] = trim( $customGroup );
+					} else {
+						$this->output( "$customGroup is not a valid group, ignoring!\n" );
+					}
+				}
+			}
+		}
+
 		$promotions = array_diff(
-			array_filter( self::$permitRoles, array( $this, 'hasOption' ) ),
+			$groups,
 			$inGroups
 		);
 
@@ -87,10 +111,23 @@ class CreateAndPromote extends Maintenance {
 			}
 		}
 
+		if ( !$exists ) {
+			# Insert the account into the database
+			$user->addToDatabase();
+			$user->saveSettings();
+		}
+
 		if ( $password ) {
 			# Try to set the password
 			try {
-				$user->setPassword( $password );
+				$status = $user->changeAuthenticationData( [
+					'username' => $user->getName(),
+					'password' => $password,
+					'retype' => $password,
+				] );
+				if ( !$status->isGood() ) {
+					throw new PasswordError( $status->getWikiText( null, null, 'en' ) );
+				}
 				if ( $exists ) {
 					$this->output( "Password set.\n" );
 					$user->saveSettings();
@@ -100,14 +137,8 @@ class CreateAndPromote extends Maintenance {
 			}
 		}
 
-		if ( !$exists ) {
-			# Insert the account into the database
-			$user->addToDatabase();
-			$user->saveSettings();
-		}
-
 		# Promote user
-		array_map( array( $user, 'addGroup' ), $promotions );
+		array_map( [ $user, 'addGroup' ], $promotions );
 
 		if ( !$exists ) {
 			# Increment site_stats.ss_users

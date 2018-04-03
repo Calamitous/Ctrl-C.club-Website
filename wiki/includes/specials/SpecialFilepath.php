@@ -27,13 +27,18 @@
  * @ingroup SpecialPage
  */
 class SpecialFilepath extends RedirectSpecialPage {
-	function __construct() {
+	public function __construct() {
 		parent::__construct( 'Filepath' );
-		$this->mAllowedRedirectParams = array( 'width', 'height' );
+		$this->mAllowedRedirectParams = [ 'width', 'height' ];
 	}
 
-	// implement by redirecting through Special:Redirect/file
-	function getRedirect( $par ) {
+	/**
+	 * Implement by redirecting through Special:Redirect/file.
+	 *
+	 * @param string|null $par
+	 * @return Title
+	 */
+	public function getRedirect( $par ) {
 		$file = $par ?: $this->getRequest()->getText( 'file' );
 
 		if ( $file ) {

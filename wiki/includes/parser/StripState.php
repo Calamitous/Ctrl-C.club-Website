@@ -37,16 +37,21 @@ class StripState {
 	const UNSTRIP_RECURSION_LIMIT = 20;
 
 	/**
-	 * @param string $prefix
+	 * @param string|null $prefix
+	 * @since 1.26 The prefix argument should be omitted, as the strip marker
+	 *  prefix string is now a constant.
 	 */
-	public function __construct( $prefix ) {
-		$this->prefix = $prefix;
-		$this->data = array(
-			'nowiki' => array(),
-			'general' => array()
-		);
-		$this->regex = "/{$this->prefix}([^\x7f]+)" . Parser::MARKER_SUFFIX . '/';
-		$this->circularRefGuard = array();
+	public function __construct( $prefix = null ) {
+		if ( $prefix !== null ) {
+			wfDeprecated( __METHOD__ . ' with called with $prefix argument' .
+				' (call with no arguments instead)', '1.26' );
+		}
+		$this->data = [
+			'nowiki' => [],
+			'general' => []
+		];
+		$this->regex = '/' . Parser::MARKER_PREFIX . "([^\x7f<>&'\"]+)" . Parser::MARKER_SUFFIX . '/';
+		$this->circularRefGuard = [];
 	}
 
 	/**
@@ -119,7 +124,7 @@ class StripState {
 
 		$oldType = $this->tempType;
 		$this->tempType = $type;
-		$text = preg_replace_callback( $this->regex, array( $this, 'unstripCallback' ), $text );
+		$text = preg_replace_callback( $this->regex, [ $this, 'unstripCallback' ], $text );
 		$this->tempType = $oldType;
 		return $text;
 	}
@@ -144,7 +149,11 @@ class StripState {
 			}
 			$this->circularRefGuard[$marker] = true;
 			$this->recursionLevel++;
-			$ret = $this->unstripType( $this->tempType, $this->data[$this->tempType][$marker] );
+			$value = $this->data[$this->tempType][$marker];
+			if ( $value instanceof Closure ) {
+				$value = $value();
+			}
+			$ret = $this->unstripType( $this->tempType, $value );
 			$this->recursionLevel--;
 			unset( $this->circularRefGuard[$marker] );
 			return $ret;
@@ -162,10 +171,10 @@ class StripState {
 	 * @return StripState
 	 */
 	public function getSubState( $text ) {
-		$subState = new StripState( $this->prefix );
+		$subState = new StripState();
 		$pos = 0;
 		while ( true ) {
-			$startPos = strpos( $text, $this->prefix, $pos );
+			$startPos = strpos( $text, Parser::MARKER_PREFIX, $pos );
 			$endPos = strpos( $text, Parser::MARKER_SUFFIX, $pos );
 			if ( $startPos === false || $endPos === false ) {
 				break;
@@ -198,7 +207,7 @@ class StripState {
 	 * @return array
 	 */
 	public function merge( $otherState, $texts ) {
-		$mergePrefix = Parser::getRandomString();
+		$mergePrefix = wfRandomString( 16 );
 
 		foreach ( $otherState->data as $type => $items ) {
 			foreach ( $items as $key => $value ) {
@@ -207,7 +216,7 @@ class StripState {
 		}
 
 		$this->tempMergePrefix = $mergePrefix;
-		$texts = preg_replace_callback( $otherState->regex, array( $this, 'mergeCallback' ), $texts );
+		$texts = preg_replace_callback( $otherState->regex, [ $this, 'mergeCallback' ], $texts );
 		$this->tempMergePrefix = null;
 		return $texts;
 	}
@@ -218,7 +227,7 @@ class StripState {
 	 */
 	protected function mergeCallback( $m ) {
 		$key = $m[1];
-		return "{$this->prefix}{$this->tempMergePrefix}-$key" . Parser::MARKER_SUFFIX;
+		return Parser::MARKER_PREFIX . $this->tempMergePrefix . '-' . $key . Parser::MARKER_SUFFIX;
 	}
 
 	/**

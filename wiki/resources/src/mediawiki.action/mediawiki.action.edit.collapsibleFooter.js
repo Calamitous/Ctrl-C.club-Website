@@ -1,27 +1,32 @@
-jQuery( document ).ready( function ( $ ) {
-	var collapsibleLists, i, handleOne;
+( function ( mw ) {
+	var collapsibleLists, handleOne;
 
 	// Collapsible lists of categories and templates
+	// If changing or removing a storeKey, ensure there is a strategy for old keys.
+	// E.g. detect existence via requestIdleCallback and remove. (T121646)
 	collapsibleLists = [
 		{
-			$list: $( '.templatesUsed ul' ),
-			$toggler: $( '.mw-templatesUsedExplanation' ),
-			cookieName: 'templates-used-list'
+			listSel: '.templatesUsed ul',
+			togglerSel: '.mw-templatesUsedExplanation',
+			storeKey: 'mwedit-state-templatesUsed'
 		},
 		{
-			$list: $( '.hiddencats ul' ),
-			$toggler: $( '.mw-hiddenCategoriesExplanation' ),
-			cookieName: 'hidden-categories-list'
+			listSel: '.hiddencats ul',
+			togglerSel: '.mw-hiddenCategoriesExplanation',
+			storeKey: 'mwedit-state-hiddenCategories'
 		},
 		{
-			$list: $( '.preview-limit-report-wrapper' ),
-			$toggler: $( '.mw-limitReportExplanation' ),
-			cookieName: 'preview-limit-report'
+			listSel: '.preview-limit-report-wrapper',
+			togglerSel: '.mw-limitReportExplanation',
+			storeKey: 'mwedit-state-limitReport'
 		}
 	];
 
-	handleOne = function ( $list, $toggler, cookieName ) {
-		var isCollapsed = $.cookie( cookieName ) !== 'expanded';
+	handleOne = function ( $list, $toggler, storeKey ) {
+		var collapsedVal = '0',
+			expandedVal = '1',
+			// Default to collapsed if not set
+			isCollapsed = mw.storage.get( storeKey ) !== expandedVal;
 
 		// Style the toggler with an arrow icon and add a tabIndex and a role for accessibility
 		$toggler.addClass( 'mw-editfooter-toggler' ).prop( 'tabIndex', 0 ).attr( 'role', 'button' );
@@ -38,17 +43,24 @@ jQuery( document ).ready( function ( $ ) {
 
 		$list.on( 'beforeExpand.mw-collapsible', function () {
 			$toggler.removeClass( 'mw-icon-arrow-collapsed' ).addClass( 'mw-icon-arrow-expanded' );
-			$.cookie( cookieName, 'expanded' );
+			mw.storage.set( storeKey, expandedVal );
 		} );
 
 		$list.on( 'beforeCollapse.mw-collapsible', function () {
 			$toggler.removeClass( 'mw-icon-arrow-expanded' ).addClass( 'mw-icon-arrow-collapsed' );
-			$.cookie( cookieName, 'collapsed' );
+			mw.storage.set( storeKey, collapsedVal );
 		} );
 	};
 
-	for ( i = 0; i < collapsibleLists.length; i++ ) {
-		// Pass to a function for iteration-local variables
-		handleOne( collapsibleLists[i].$list, collapsibleLists[i].$toggler, collapsibleLists[i].cookieName );
-	}
-} );
+	mw.hook( 'wikipage.editform' ).add( function ( $editForm ) {
+		var i;
+		for ( i = 0; i < collapsibleLists.length; i++ ) {
+			// Pass to a function for iteration-local variables
+			handleOne(
+				$editForm.find( collapsibleLists[ i ].listSel ),
+				$editForm.find( collapsibleLists[ i ].togglerSel ),
+				collapsibleLists[ i ].storeKey
+			);
+		}
+	} );
+}( mediaWiki ) );

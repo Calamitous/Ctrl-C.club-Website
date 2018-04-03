@@ -30,8 +30,8 @@ require_once __DIR__ . '/Maintenance.php';
 class DeleteEqualMessages extends Maintenance {
 	public function __construct() {
 		parent::__construct();
-		$this->mDescription = 'Deletes all pages in the MediaWiki namespace that are equal to '
-			. 'the default message';
+		$this->addDescription( 'Deletes all pages in the MediaWiki namespace that are equal to '
+			. 'the default message' );
 		$this->addOption( 'delete', 'Actually delete the pages (default: dry run)' );
 		$this->addOption( 'delete-talk', 'Don\'t leave orphaned talk pages behind during deletion' );
 		$this->addOption( 'lang-code', 'Check for subpages of this language code (default: root '
@@ -60,7 +60,7 @@ class DeleteEqualMessages extends Maintenance {
 		$l10nCache = Language::getLocalisationCache();
 		$messageNames = $l10nCache->getSubitemList( 'en', 'messages' );
 		// Normalise message names for NS_MEDIAWIKI page_title
-		$messageNames = array_map( array( $wgContLang, 'ucfirst' ), $messageNames );
+		$messageNames = array_map( [ $wgContLang, 'ucfirst' ], $messageNames );
 
 		$statuses = AllMessagesTablePager::getCustomisedStatuses(
 			$messageNames, $langCode, $nonContLang );
@@ -82,10 +82,10 @@ class DeleteEqualMessages extends Maintenance {
 						$actual === $default
 				) {
 					$hasTalk = isset( $statuses['talks'][$key] );
-					$messageInfo['results'][] = array(
+					$messageInfo['results'][] = [
 						'title' => $key . $titleSuffix,
 						'hasTalk' => $hasTalk,
-					);
+					];
 					$messageInfo['equalPages']++;
 					if ( $hasTalk ) {
 						$messageInfo['equalPagesTalks']++;
@@ -100,12 +100,12 @@ class DeleteEqualMessages extends Maintenance {
 		$doDeleteTalk = $this->hasOption( 'delete-talk' );
 		$langCode = $this->getOption( 'lang-code' );
 
-		$messageInfo = array(
+		$messageInfo = [
 			'relevantPages' => 0,
 			'equalPages' => 0,
 			'equalPagesTalks' => 0,
-			'results' => array(),
-		);
+			'results' => [],
+		];
 
 		$this->output( 'Checking for pages with default message...' );
 
@@ -162,7 +162,7 @@ class DeleteEqualMessages extends Maintenance {
 			return;
 		}
 
-		$user = User::newFromName( 'MediaWiki default' );
+		$user = User::newSystemUser( 'MediaWiki default', [ 'steal' => true ] );
 		if ( !$user ) {
 			$this->error( "Invalid username", true );
 		}
@@ -174,7 +174,7 @@ class DeleteEqualMessages extends Maintenance {
 
 		// Handle deletion
 		$this->output( "\n...deleting equal messages (this may take a long time!)..." );
-		$dbw = wfGetDB( DB_MASTER );
+		$dbw = $this->getDB( DB_MASTER );
 		foreach ( $messageInfo['results'] as $result ) {
 			wfWaitForSlaves();
 			$dbw->ping();
@@ -182,14 +182,20 @@ class DeleteEqualMessages extends Maintenance {
 			$this->output( "\n* [[$title]]" );
 			$page = WikiPage::factory( $title );
 			$error = ''; // Passed by ref
-			$page->doDeleteArticle( 'No longer required', false, 0, false, $error, $user );
+			$success = $page->doDeleteArticle( 'No longer required', false, 0, true, $error, $user );
+			if ( !$success ) {
+				$this->output( " (Failed!)" );
+			}
 			if ( $result['hasTalk'] && $doDeleteTalk ) {
 				$title = Title::makeTitle( NS_MEDIAWIKI_TALK, $result['title'] );
 				$this->output( "\n* [[$title]]" );
 				$page = WikiPage::factory( $title );
 				$error = ''; // Passed by ref
-				$page->doDeleteArticle( 'Orphaned talk page of no longer required message',
-					false, 0, false, $error, $user );
+				$success = $page->doDeleteArticle( 'Orphaned talk page of no longer required message',
+					false, 0, true, $error, $user );
+				if ( !$success ) {
+					$this->output( " (Failed!)" );
+				}
 			}
 		}
 		$this->output( "\n\ndone!\n" );

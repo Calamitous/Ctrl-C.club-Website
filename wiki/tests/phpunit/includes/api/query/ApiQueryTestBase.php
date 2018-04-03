@@ -38,15 +38,15 @@ STR;
 	 * @return array
 	 */
 	protected function merge( /*...*/ ) {
-		$request = array();
-		$expected = array();
+		$request = [];
+		$expected = [];
 		foreach ( func_get_args() as $v ) {
 			list( $req, $exp ) = $this->validateRequestExpectedPair( $v );
 			$request = array_merge_recursive( $request, $req );
 			$this->mergeExpected( $expected, $exp );
 		}
 
-		return array( $request, $expected );
+		return [ $request, $expected ];
 	}
 
 	/**
@@ -56,12 +56,12 @@ STR;
 	 * @return array
 	 */
 	private function validateRequestExpectedPair( $v ) {
-		$this->assertType( 'array', $v, self::PARAM_ASSERT );
+		$this->assertInternalType( 'array', $v, self::PARAM_ASSERT );
 		$this->assertEquals( 2, count( $v ), self::PARAM_ASSERT );
 		$this->assertArrayHasKey( 0, $v, self::PARAM_ASSERT );
 		$this->assertArrayHasKey( 1, $v, self::PARAM_ASSERT );
-		$this->assertType( 'array', $v[0], self::PARAM_ASSERT );
-		$this->assertType( 'array', $v[1], self::PARAM_ASSERT );
+		$this->assertInternalType( 'array', $v[0], self::PARAM_ASSERT );
+		$this->assertInternalType( 'array', $v[1], self::PARAM_ASSERT );
 
 		return $v;
 	}
@@ -87,6 +87,7 @@ STR;
 
 	/**
 	 * Checks that the request's result matches the expected results.
+	 * Assumes no rawcontinue and a complete batch.
 	 * @param array $values Array is a two element array( request, expected_results )
 	 * @param array $session
 	 * @param bool $appendModule
@@ -99,16 +100,13 @@ STR;
 		if ( !array_key_exists( 'action', $req ) ) {
 			$req['action'] = 'query';
 		}
-		if ( !array_key_exists( 'continue', $req ) ) {
-			$req['rawcontinue'] = '1';
-		}
 		foreach ( $req as &$val ) {
 			if ( is_array( $val ) ) {
 				$val = implode( '|', array_unique( $val ) );
 			}
 		}
 		$result = $this->doApiRequest( $req, $session, $appendModule, $user );
-		$this->assertResult( array( 'query' => $exp ), $result[0], $req );
+		$this->assertResult( [ 'batchcomplete' => true, 'query' => $exp ], $result[0], $req );
 	}
 
 	protected function assertResult( $exp, $result, $message = '' ) {
