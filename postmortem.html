@@ -1,0 +1,54 @@
+<!DOCTYPE html PUBLIC "XHTML 1.1" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html>
+    <head>
+        <title>Ctrl-C Club postmortem</title>
+        <link href="/screen.css" type="text/css" rel="stylesheet" />
+        <link rel="shortcut icon" href="favicon.ico" />
+        <script src="//code.jquery.com/jquery-1.11.3.min.js"></script>
+        <script src="//code.jquery.com/jquery-migrate-1.2.1.min.js"></script>
+    </head>
+
+    <body>
+        <h2>$>^C</h2>
+        <h1>Outage Status</h1>
+        <p class="longtext">We're back!  The sites, directories, and IRC are back up, and you sould be able to log in as usual.</p>
+        <p class="longtext">The wiki will be back soon.  Some of the programming languages are missing; they'll all be reinstalled as I get time over the next few days.</p>
+        <p class="longtext">I'll put up a postmortem once everything's fixed.</p>
+        <p class="longtext">NOTE: If you see the following message when you log in:</p>
+	<pre>
+		@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+		@ WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED! @
+		@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+		IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
+	</pre>
+        <p class="longtext">...they you're fine!  This is a side effect of the IP address of the server changing.  Update your ~/.ssh/known_hosts file according to the instructions and you will be able to get back in.  The server's ECDSA key fingerprint is as follows, if you'd like to verify it:</p>
+	<pre>
+		9f:67:e6:cb:bd:f0:56:30:23:7c:7c:9d:91:c6:39:2d
+	</pre>
+        <p class="longtext">We did lose two things: symlinks and cronjobs.  The data is all still available, so if you symlinked to something outside your home directory, let me know and I can get a copy of it for you.  Cron jobs will need to be re-entered.  :(  Sorry about that.</p>
+        <p class="longtext">If you are missing anything, notice something wrong, or just have a suggestion, please contact us at <a href="mailto:admin@ctrl-c.club">admin@ctrl-c.club</a></p>
+        <p class="longtext">Thanks everyone for your patience!  Let's get back to fun and learning!</p>
+        <h1>Outage Postmortem</h1>
+        <p class="longtext">So what happened?</p>
+        <p class="longtext">On Feb. 9, at about 9:30 AM CST, the server hosting ctrl-c.club was no longer available.  Communication from our hosting provider (digitalocean.com) indicated that the server's networking had been disabled due to a flood of traffic.</p>
+        <p class="longtext">Working with DO, I was able to log in and set up a firewall to block the outgoing traffic which was causing the problem.  My hope was to allow our regular users to continue using Ctrl-C.club as usual while I tracked down the misbehaving user or process.</p>
+	<p class="longtext">DO agreed to re-enable networking for us, since I asked nicely.  :)  The server and site came back up and everything appeared to be working correctly.  I let a few people know that things were provisionally working again.</p>
+        <p class="longtext">That same day, at about 4:00 PM CST, Ctrl-C.club went down again.  DigitalOcean had once again disabled networking due to a flood of traffic.</p>
+        <p class="longtext">To my immense chagrin, I discovered that, while cleaning up some odds and ends on the server, I had disabled the firewall.  Never underestimate the ability of one tiny change to screw everything up.  :\</p>
+        <p class="longtext">Working again with DO, we discovered that the outgoing traffic was clearly malicious in nature.  DO quite justifiably asked me to destroy the server which was causing the problem.</p>
+        <p class="longtext">That evening, I spun up a new server through DigitalOcean, and began transferring user data, packages, and configuration over from the old server to the new server. This work was completed by the next day.</p>
+        <p class="longtext">Over the next week, I added missing packages, fixed up the wiki, and corrected a few minor issues that had cropped up during the transfer.</p>
+        <p class="longtext">Moving forward, the firewall blocking malicious traffic will stay in place.  I've further documented the system configuration and packages, so that in the event of another outage, spinning up a new server will be much faster.</p>
+        <h1>Ongoing Impacts</h1>
+        <p class="longtext">As discussed extensively in the status above:</p>
+	<ul class="sublist">
+		<li>Cron jobs and symlinks were lost.</li>
+		<li>The IP address of the server changed, so users logging in with SSH keys will need to update their known_hosts file.</li>
+		<li>There may be some missing packages... if there's something you've used that's no longer available, please don't hesitate to get in touch at <a href="mailto:admin@ctrl-c.club">admin@ctrl-c.club</a> and I'll get it installed.</li>
+	</ul>
+        <p class="longtext">There are no other impacts known or expected at this time.</p>
+        <h1>Conclusion</h1>
+        <p class="longtext">DigitalOcean was a great help throughout this process.  I'd like to thank them, and all of our amazing users who've built our community for their patience and kindness.</p>
+        <p class="longtext">Let's keep learning and having fun!</p>
+    </body>
+</html>
